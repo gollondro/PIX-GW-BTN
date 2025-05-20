@@ -617,5 +617,38 @@
     "amountUSD": "362.16",
     "date": "2025-05-20T13:46:53.273Z",
     "status": "PENDIENTE"
+  },
+  {
+    "id": "2e130710-da3c-49cb-a899-cb3f220c922a",
+    "email": "mcaracci@gmail.com",
+    "cpf": "12979230901",
+    "name": "marcelo Caracci",
+    "phone": "+5511123456789",
+    "amountCLP": "3434",
+    "amountUSD": "3.63",
+    "date": "2025-05-20T13:54:05.312Z",
+    "status": "PENDIENTE"
+  },
+  {
+    "id": "485b4b51-7629-40a8-888a-83d4ecbe81f7",
+    "email": "mcaracci@gmail.com",
+    "cpf": "00680011854",
+    "name": "marcelo Caracci",
+    "phone": "+5511123456789",
+    "amountCLP": "5454",
+    "amountUSD": "5.77",
+    "date": "2025-05-20T13:55:56.296Z",
+    "status": "PENDIENTE"
+  },
+  {
+    "id": "aa10cf45-8f48-4645-9468-e21a3f0c22ff",
+    "email": "mcaracci@gmail.com",
+    "cpf": "12979230901",
+    "name": "marcelo Caracci",
+    "phone": "+5511123456789",
+    "amountCLP": "5454",
+    "amountUSD": "5.77",
+    "date": "2025-05-20T14:16:42.393Z",
+    "status": "PENDIENTE"
   }
 ]
