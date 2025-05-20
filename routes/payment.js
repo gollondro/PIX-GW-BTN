@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
+const rendixApi = require('../services/rendixApi'); // Importar el servicio de API
 
 // Ruta para procesar pagos PIX
 router.post('/', async (req, res) => {
@@ -23,10 +24,11 @@ router.post('/', async (req, res) => {
     
     // Manejar compatibilidad con el nuevo formato (donde se envia solo 'amount')
     if (amount && !amountCLP && !amountUSD) {
-      if (currency === 'CLP') {
-        amountCLP = amount;
-      } else if (currency === 'USD') {
+      if (currency === 'USD') {
         amountUSD = amount;
+      } else {
+        amountCLP = amount;
+        currency = 'CLP';
       }
     }
     
@@ -65,12 +67,35 @@ router.post('/', async (req, res) => {
     // Registrar moneda original para estadisticas
     const originalCurrency = currency || (amountCLP && !amountUSD ? 'CLP' : 'USD');
     
-    // Calcular monto en BRL (ejemplo simplificado)
-    const usdToBRL = 5.3; // Tasa USD a BRL de ejemplo
-    const amountBRL = (parseFloat(amountUSD) * usdToBRL).toFixed(2);
-    
     // Generar ID unico para la transaccion
     const transactionId = uuidv4();
+    
+    // Preparar los datos del cliente para la API
+    const customer = {
+      name,
+      email,
+      phone,
+      cpf
+    };
+    
+    // Llamar a la API de Rendix para crear la solicitud de pago
+    console.log('?? Conectando con API de RENPIX...');
+    
+    const pixResponse = await rendixApi.createPixChargeLink({
+      amountUSD: parseFloat(amountUSD),
+      customer,
+      controlNumber: transactionId
+    });
+    
+    console.log('?? Respuesta API RENPIX:', pixResponse);
+    
+    // Calcular monto en BRL (usando datos reales de la API si estan disponibles)
+    let amountBRL = pixResponse.amount;
+    if (!amountBRL) {
+      // Si la API no devuelve el monto en BRL, calcularlo con la tasa aproximada
+      const usdToBRL = 5.3; // Tasa USD a BRL de ejemplo
+      amountBRL = (parseFloat(amountUSD) * usdToBRL).toFixed(2);
+    }
     
     // Preparar registro para almacenar
     const transaction = {
@@ -102,16 +127,7 @@ router.post('/', async (req, res) => {
     pendingTransactions.push(transaction);
     fs.writeFileSync(pendingFile, JSON.stringify(pendingTransactions, null, 2));
     
-    // En un sistema real, aqui conectariamos con el servicio PIX
-    // Vamos a simular una respuesta exitosa
-    
-    // Generar URL de pago ficticia (en un sistema real esto vendria del proveedor PIX)
-    const pixPaymentUrl = `https://example.com/pix/${transactionId}`;
-    
-    // Generar QR code data ficticio (en base64)
-    const mockQRCodeBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFeAJ5jMMdpQAAAABJRU5ErkJggg==';
-    
-    // Preparar la respuesta
+    // Preparar la respuesta para el cliente
     const response = {
       success: true,
       transactionId,
@@ -122,10 +138,10 @@ router.post('/', async (req, res) => {
       rateCLPperUSD,
       vetTax: '1.2%',
       qrData: {
-        pixCopyPast: pixPaymentUrl,
-        qrCodeBase64: mockQRCodeBase64
+        pixCopyPast: pixResponse.pixCopyPast || pixResponse.url || `https://example.com/pix/${transactionId}`,
+        qrCodeBase64: pixResponse.qrCodeBase64 || pixResponse.qrCode
       },
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minutos de validez
+      expiresAt: pixResponse.expiresAt || new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minutos de validez por defecto
     };
     
     console.log('? Solicitud de pago procesada exitosamente');
