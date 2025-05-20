@@ -2,6 +2,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 let token = null;
+let tokenExpiry = null;
 
 async function authenticate() {
   console.log('🔐 Autenticando en Rendix...');
@@ -21,7 +22,9 @@ async function authenticate() {
     
     if (res.data && res.data.data && res.data.data.token) {
       token = res.data.data.token;
-      console.log('✅ Token obtenido');
+      // Establecer expiración del token (podría ser diferente según la API)
+      tokenExpiry = new Date(Date.now() + 23 * 60 * 60 * 1000); // 23 horas
+      console.log('✅ Token obtenido, válido hasta:', tokenExpiry);
       return token;
     } else {
       console.error('❌ Error en formato de respuesta de autenticación:', JSON.stringify(res.data));
@@ -44,9 +47,18 @@ async function authenticate() {
   }
 }
 
+// Verificar si el token es válido o está próximo a expirar
+function isTokenValid() {
+  if (!token || !tokenExpiry) return false;
+  // Renovar si faltan menos de 30 minutos para expirar
+  return tokenExpiry > new Date(Date.now() + 30 * 60 * 1000);
+}
+
 async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
   try {
-    if (!token) {
+    // Verificar si necesitamos obtener o renovar el token
+    if (!isTokenValid()) {
+      console.log('🔑 Token no disponible o próximo a expirar, obteniendo uno nuevo...');
       await authenticate();
     }
 
@@ -83,7 +95,28 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
     });
 
     console.log('🔍 Respuesta API (status):', res.status);
-    console.log('🔍 Respuesta API (data):', JSON.stringify(res.data));
+    
+    // Loguear las propiedades para debug
+    if (res.data && res.data.data) {
+      const responseData = res.data.data;
+      console.log('📊 Propiedades de la respuesta:');
+      Object.keys(responseData).forEach(key => {
+        console.log(`  - ${key}: ${JSON.stringify(responseData[key])}`);
+      });
+      
+      // Buscar específicamente propiedades relacionadas con taxRate o vetTax
+      const taxRelatedKeys = Object.keys(responseData).filter(key => 
+        key.toLowerCase().includes('tax') || 
+        key.toLowerCase().includes('rate') || 
+        key.toLowerCase().includes('vet')
+      );
+      
+      if (taxRelatedKeys.length > 0) {
+        console.log('💲 Propiedades relacionadas con impuestos encontradas:', taxRelatedKeys);
+      } else {
+        console.warn('⚠️ No se encontraron propiedades relacionadas con impuestos en la respuesta');
+      }
+    }
 
     if (!res.data || !res.data.data) {
       console.error('❌ Respuesta inválida de la API:', res.data);
@@ -111,6 +144,7 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
       if (error.response.status === 401) {
         console.log('🔄 Token expirado, renovando...');
         token = null;
+        tokenExpiry = null;
         await authenticate();
         return createPixChargeLink({ amountUSD, customer, controlNumber });
       }

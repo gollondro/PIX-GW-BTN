@@ -50,7 +50,7 @@ router.post('/', async (req, res) => {
         const rateData = JSON.parse(fs.readFileSync(rateFile, 'utf8'));
         rateCLPperUSD = rateData.rate || rateCLPperUSD;
       } catch (error) {
-        console.error('?? Error al leer el archivo de tasa:', error);
+        console.error('? Error al leer el archivo de tasa:', error);
       }
     }
     
@@ -89,18 +89,57 @@ router.post('/', async (req, res) => {
     
     console.log('?? Respuesta API RENPIX:', pixResponse);
     
-    // Calcular monto en BRL (usando datos reales de la API si estan disponibles)
-   let amountBRL = pixResponse.amount || pixResponse.amountBRL;
-// Obtener el vetTax directamente desde la API
-let vetTax = pixResponse.vetTax || pixResponse.tax || pixResponse.taxRate;
-
-// Si no hay formato de porcentaje y es un numero, formatearlo
-if (typeof vetTax === 'number') {
-  vetTax = (vetTax * 100).toFixed(2) + '%';
-} else if (typeof vetTax === 'string' && !vetTax.includes('%')) {
-  // Si es un string pero no contiene %, agregar el simbolo
-  vetTax = vetTax + '%';
-}
+    // Obtener el tipo de cambio USD -> BRL (tasa Brasil)
+    // La API devuelve diferentes formatos segun la implementacion
+    let usdToBrlRate;
+    
+    // Intentar obtener la tasa desde diferentes propiedades posibles
+    if (pixResponse.exchangeRate) {
+      usdToBrlRate = pixResponse.exchangeRate;
+    } else if (pixResponse.rate) {
+      usdToBrlRate = pixResponse.rate;
+    } else if (pixResponse.vetTax) {
+      // Asegurarse de que es un numero
+      if (typeof pixResponse.vetTax === 'number') {
+        usdToBrlRate = pixResponse.vetTax;
+      } else if (typeof pixResponse.vetTax === 'string') {
+        // Intentar convertir a numero quitando % si existe
+        usdToBrlRate = parseFloat(pixResponse.vetTax.replace('%', ''));
+      }
+    } else {
+      // Si no encontramos la tasa, usar un valor por defecto
+      usdToBrlRate = 5.3; // Un valor razonable de USD a BRL
+      console.warn('?? No se encontro tasa USD->BRL en la respuesta. Usando valor por defecto:', usdToBrlRate);
+    }
+    
+    // Asegurarse de que es un numero valido
+    if (isNaN(usdToBrlRate) || usdToBrlRate <= 0) {
+      usdToBrlRate = 5.3; // Valor por defecto si no es valido
+      console.warn('?? Tasa USD->BRL invalida. Usando valor por defecto:', usdToBrlRate);
+    }
+    
+    // Formatear el valor para mostrar
+    const vetTaxFormatted = usdToBrlRate.toFixed(4);
+    console.log('?? Tasa de conversion USD->BRL:', vetTaxFormatted);
+    
+    // Calcular el monto en BRL
+    const parsedUSD = parseFloat(amountUSD);
+    if (!isNaN(parsedUSD)) {
+      amountBRL = (parsedUSD * usdToBrlRate).toFixed(2);
+      console.log('?? Monto en BRL calculado:', amountBRL);
+    } else {
+      console.error('? Error al calcular monto BRL: valor USD invalido');
+      amountBRL = "0.00";
+    }
+    
+    // Si la API ya proporciona el monto en BRL, usarlo en lugar del calculado
+    if (pixResponse.amount || pixResponse.amountBRL) {
+      const apiProvidedAmount = pixResponse.amount || pixResponse.amountBRL;
+      if (!isNaN(parseFloat(apiProvidedAmount))) {
+        amountBRL = parseFloat(apiProvidedAmount).toFixed(2);
+        console.log('?? Usando monto BRL proporcionado por la API:', amountBRL);
+      }
+    }
     
     // Preparar registro para almacenar
     const transaction = {
@@ -125,7 +164,7 @@ if (typeof vetTax === 'number') {
       try {
         pendingTransactions = JSON.parse(fs.readFileSync(pendingFile, 'utf8'));
       } catch (error) {
-        console.error('?? Error al leer el archivo de transacciones pendientes:', error);
+        console.error('? Error al leer el archivo de transacciones pendientes:', error);
       }
     }
     
@@ -141,7 +180,7 @@ if (typeof vetTax === 'number') {
       amountUSD,
       amountBRL,
       rateCLPperUSD,
-      vetTax: '1.2%',
+      vetTax: vetTaxFormatted, // Usar el formato correcto sin %
       qrData: {
         pixCopyPast: pixResponse.pixCopyPast || pixResponse.url || `https://example.com/pix/${transactionId}`,
         qrCodeBase64: pixResponse.qrCodeBase64 || pixResponse.qrCode
