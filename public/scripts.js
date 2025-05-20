@@ -1,4 +1,5 @@
 let session = null;
+let currentCurrency = 'CLP';
 
 // Función de validación de CPF brasileño
 function validarCPF(cpf) {
@@ -44,7 +45,78 @@ function showMessage(message, type = 'danger') {
   }, 5000);
 }
 
-// Manejo del formulario de login
+// Actualizar etiqueta de monto según moneda seleccionada
+function updateAmountLabel() {
+  const amountLabel = document.getElementById('amountLabel');
+  if (amountLabel) {
+    const lang = window.currentLang ? window.currentLang() : 'es';
+    const translations = {
+      'es': { 'CLP': 'Monto en CLP', 'USD': 'Monto en USD' },
+      'en': { 'CLP': 'Amount in CLP', 'USD': 'Amount in USD' },
+      'pt': { 'CLP': 'Valor em CLP', 'USD': 'Valor em USD' }
+    };
+    amountLabel.innerText = translations[lang][currentCurrency] || `Monto en ${currentCurrency}`;
+  }
+}
+
+// Función para inicializar el selector de moneda según los permisos del usuario
+function initCurrencySelector() {
+  const currencySelector = document.getElementById('currencySelector');
+  if (!currencySelector) return;
+  
+  if (!session) {
+    currencySelector.style.display = 'none';
+    return;
+  }
+  
+  // Mostrar u ocultar el selector según las preferencias del usuario
+  if (session.allowCLP && session.allowUSD) {
+    currencySelector.style.display = 'block';
+  } else if (session.allowCLP) {
+    currencySelector.style.display = 'none';
+    currentCurrency = 'CLP';
+  } else if (session.allowUSD) {
+    currencySelector.style.display = 'none';
+    currentCurrency = 'USD';
+  } else {
+    currencySelector.style.display = 'none';
+    currentCurrency = 'CLP'; // Valor por defecto
+  }
+  
+  // Actualizar la etiqueta del monto
+  updateAmountLabel();
+  
+  // Establecer el valor inicial de los botones de radio
+  const radioCLP = document.getElementById('currencyCLP');
+  const radioUSD = document.getElementById('currencyUSD');
+  
+  if (radioCLP && radioUSD) {
+    if (currentCurrency === 'CLP') {
+      radioCLP.checked = true;
+      radioUSD.checked = false;
+    } else {
+      radioCLP.checked = false;
+      radioUSD.checked = true;
+    }
+    
+    // Añadir event listeners para actualizar la etiqueta
+    radioCLP.addEventListener('change', function() {
+      if (this.checked) {
+        currentCurrency = 'CLP';
+        updateAmountLabel();
+      }
+    });
+    
+    radioUSD.addEventListener('change', function() {
+      if (this.checked) {
+        currentCurrency = 'USD';
+        updateAmountLabel();
+      }
+    });
+  }
+}
+
+// Inicializar la aplicación cuando el DOM esté cargado
 document.addEventListener('DOMContentLoaded', function() {
   // Verificar que existan los elementos necesarios
   const loginForm = document.getElementById('loginForm');
@@ -58,6 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return;
   }
   
+  // Manejo del formulario de login
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('loginEmail').value;
@@ -92,7 +165,17 @@ document.addEventListener('DOMContentLoaded', function() {
         session = data;
         loginForm.style.display = 'none';
         pixContainer.style.display = 'block';
-        formTitle.innerText = 'Generar cobro con PIX';
+        
+        const lang = window.currentLang ? window.currentLang() : 'es';
+        const translations = {
+          'es': 'Generar cobro con PIX',
+          'en': 'Generate PIX payment',
+          'pt': 'Gerar cobrança PIX'
+        };
+        formTitle.innerText = translations[lang] || 'Generar cobro con PIX';
+        
+        // Inicializar el selector de moneda
+        initCurrencySelector();
       } else {
         console.log('Login fallido');
         showMessage(data.error || 'Credenciales inválidas');
@@ -114,7 +197,14 @@ document.addEventListener('DOMContentLoaded', function() {
     pixContainer.style.display = 'none';
     loginForm.style.display = 'block';
     document.getElementById('qrResult').innerHTML = '';
-    formTitle.innerText = 'Iniciar sesión';
+    
+    const lang = window.currentLang ? window.currentLang() : 'es';
+    const translations = {
+      'es': 'Iniciar sesión',
+      'en': 'Login',
+      'pt': 'Entrar'
+    };
+    formTitle.innerText = translations[lang] || 'Iniciar sesión';
   });
   
   // Manejo del formulario PIX
@@ -122,143 +212,6 @@ document.addEventListener('DOMContentLoaded', function() {
     e.preventDefault();
     
     // Validaciones
-    const amountCLP = document.getElementById('amountCLP').value;
+    const amount = document.getElementById('amount').value;
     const name = document.getElementById('name').value;
     const email = document.getElementById('emailCliente').value;
-    const phone = document.getElementById('phone').value;
-    const cpf = document.getElementById('cpf').value;
-    
-    if (!amountCLP || !name || !email || !phone || !cpf) {
-      showMessage('Por favor, complete todos los campos');
-      return;
-    }
-    
-    if (!validarCPF(cpf)) {
-      showMessage("CPF inválido");
-      return;
-    }
-    
-    // Verificar sesión activa
-    if (!session) {
-      showMessage('Su sesión ha expirado. Por favor, inicie sesión nuevamente.');
-      pixContainer.style.display = 'none';
-      loginForm.style.display = 'block';
-      return;
-    }
-    
-    const btn = e.submitter;
-    const originalText = btn.innerText;
-    btn.disabled = true;
-    btn.innerText = 'Procesando...';
-    
-    try {
-      const data = {
-        amountCLP,
-        customer: { name, email, phone, cpf }
-      };
-      
-      console.log('Enviando solicitud de pago:', data);
-      console.log('Headers:', {
-        'X-Renpix-Email': session.renpix_email,
-        'X-Renpix-Password': '*****',
-        'X-Renpix-Merchant': session.merchant_id
-      });
-      
-      const res = await fetch('/api/payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Renpix-Email': session.renpix_email,
-          'X-Renpix-Password': session.renpix_password,
-          'X-Renpix-Merchant': session.merchant_id
-        },
-        body: JSON.stringify(data)
-      });
-      
-      console.log('Respuesta recibida, status:', res.status);
-      const result = await res.json();
-      console.log('Datos de respuesta:', result);
-      
-      if (result.success) {
-        let countdown = 300;
-        const txId = result.transactionId;
-        let pagoConfirmado = false;
-        
-        const qrResult = document.getElementById('qrResult');
-        qrResult.innerHTML = `
-          <p id="countdown" class="text-danger fw-bold"></p>
-          <p><strong>Monto en USD:</strong> $${result.amountUSD}</p>
-          <p><strong>Tasa USD → CLP:</strong> ${result.rateCLPperUSD}</p>
-          <p><strong>Tasa USD → BRL (vet):</strong> ${result.vetTax}</p>
-          <p><strong>Valor que pagará el cliente en BRL:</strong> R$ ${result.amountBRL}</p>
-        `;
-        
-        // Verificar y mostrar enlace PIX si existe
-        if (result.qrData && result.qrData.pixCopyPast) {
-          qrResult.innerHTML += `
-            <p><strong>Enlace de pago:</strong><br>
-            <a href="${result.qrData.pixCopyPast}" target="_blank">${result.qrData.pixCopyPast}</a></p>
-          `;
-        }
-        
-        // Verificar y mostrar código QR si existe
-        if (result.qrData && result.qrData.qrCodeBase64) {
-          qrResult.innerHTML += `
-            <img src="data:image/png;base64,${result.qrData.qrCodeBase64}" 
-                 alt="QR PIX" class="img-fluid mt-3" />
-          `;
-        } else {
-          qrResult.innerHTML += `<p class="text-warning">QR no disponible</p>`;
-        }
-        
-        const countdownEl = document.getElementById('countdown');
-        
-        const interval = setInterval(() => {
-          if (pagoConfirmado) {
-            clearInterval(interval);
-            return;
-          }
-          if (countdown <= 0) {
-            clearInterval(interval);
-            clearInterval(pollInterval);
-            qrResult.innerHTML = '<p class="text-warning">⚠️ El código QR ha expirado.</p>';
-          } else {
-            const minutes = Math.floor(countdown / 60);
-            const seconds = countdown % 60;
-            countdownEl.innerText = `⏳ Tiempo restante: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            countdown--;
-          }
-        }, 1000);
-        
-        const pollInterval = setInterval(async () => {
-          try {
-            const paid = await fetch('/api/paid').then(r => r.json());
-            const match = paid.find(p => p.id === txId);
-            if (match) {
-              pagoConfirmado = true;
-              clearInterval(interval);
-              clearInterval(pollInterval);
-              qrResult.innerHTML = `
-                <div class="alert alert-success"><strong>✅ Pago recibido</strong><br>
-                  Monto pagado: USD ${match.amountUSD}<br>
-                  Cliente: ${match.name}<br>
-                  Fecha: ${new Date(match.paid_at).toLocaleString()}
-                </div>
-              `;
-            }
-          } catch (error) {
-            console.error("Error al verificar pagos:", error);
-          }
-        }, 10000);
-      } else {
-        showMessage(result.error || 'Error desconocido', 'danger');
-      }
-    } catch (error) {
-      console.error("Error en la solicitud:", error);
-      showMessage('Error de conexión: ' + error.message, 'danger');
-    } finally {
-      btn.disabled = false;
-      btn.innerText = originalText;
-    }
-  });
-});

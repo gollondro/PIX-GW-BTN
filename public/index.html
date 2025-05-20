@@ -11,15 +11,16 @@
     .btn-afex { background-color: #00A859; color: #fff; }
     .btn-afex:hover { background-color: #007a4d; }
     .lang-flag { width: 24px; height: 16px; cursor: pointer; margin-left: 8px; }
+    .currency-selector { margin-bottom: 15px; }
   </style>
 </head>
 <body class="bg-light">
   <nav class="navbar navbar-expand-lg navbar-dark bg-afex px-3 d-flex justify-content-between">
     <a class="navbar-brand" href="#"><img src="img/afex-logo.png" alt="Afex" height="40"></a>
     <div>
-      <img src="https://flagcdn.com/w40/es.png" class="lang-flag" onclick="setLang('es')" />
-      <img src="https://flagcdn.com/w40/us.png" class="lang-flag" onclick="setLang('en')" />
-      <img src="https://flagcdn.com/w40/br.png" class="lang-flag" onclick="setLang('pt')" />
+      <img src="https://flagcdn.com/w40/es.png" class="lang-flag" data-lang="es" alt="Español" />
+      <img src="https://flagcdn.com/w40/us.png" class="lang-flag" data-lang="en" alt="English" />
+      <img src="https://flagcdn.com/w40/br.png" class="lang-flag" data-lang="pt" alt="Português" />
     </div>
   </nav>
 
@@ -32,24 +33,68 @@
 
             <!-- Login Form -->
             <form id="loginForm">
-              <div class="mb-3"><label class="form-label lang-email">Email</label><input type="email" class="form-control" id="loginEmail" required></div>
-              <div class="mb-3"><label class="form-label lang-password">Contraseña</label><input type="password" class="form-control" id="loginPassword" required></div>
-              <div class="d-grid"><button type="submit" class="btn btn-afex lang-login-btn">Entrar</button></div>
+              <div class="mb-3">
+                <label class="form-label lang-email">Email</label>
+                <input type="email" class="form-control" id="loginEmail" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label lang-password">Contraseña</label>
+                <input type="password" class="form-control" id="loginPassword" required>
+              </div>
+              <div class="d-grid">
+                <button type="submit" class="btn btn-afex lang-loginBtn">Entrar</button>
+              </div>
             </form>
 
             <!-- PIX Form -->
             <div id="pixContainer" style="display: none;">
-              <div class="text-end mt-2"><button id="logoutBtn" class="btn btn-outline-danger btn-sm">Cerrar sesión</button></div>
+              <div class="text-end mt-2">
+                <button id="logoutBtn" class="btn btn-outline-danger btn-sm lang-logout">Cerrar sesión</button>
+              </div>
+              
               <form id="pixForm" novalidate>
-                <div class="mb-3"><label class="form-label lang-amount">Monto en CLP</label><input type="number" class="form-control" id="amountCLP" required></div>
-                <div class="mb-3"><label class="form-label lang-name">Nombre</label><input type="text" class="form-control" id="name" required></div>
-                <div class="mb-3"><label class="form-label lang-client-email">Email</label><input type="email" class="form-control" id="emailCliente" required></div>
-                <div class="mb-3"><label class="form-label lang-phone">Teléfono</label><input type="text" class="form-control" id="phone" value="+5511" required></div>
-                <div class="mb-3"><label class="form-label lang-cpf">CPF</label><input type="text" class="form-control" id="cpf" required></div>
-                <div class="d-grid"><button type="submit" class="btn btn-afex lang-generate-btn">Generar QR</button></div>
+                <!-- Selector de moneda -->
+                <div class="currency-selector" id="currencySelector" style="display: none;">
+                  <label class="form-label lang-currency">Moneda</label>
+                  <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="currency" id="currencyCLP" value="CLP" checked>
+                    <label class="btn btn-outline-secondary" for="currencyCLP">CLP</label>
+                    
+                    <input type="radio" class="btn-check" name="currency" id="currencyUSD" value="USD">
+                    <label class="btn btn-outline-secondary" for="currencyUSD">USD</label>
+                  </div>
+                </div>
+                
+                <!-- Campo de monto dinámico -->
+                <div class="mb-3">
+                  <label class="form-label" id="amountLabel">Monto en CLP</label>
+                  <input type="number" class="form-control" id="amount" required>
+                </div>
+                
+                <div class="mb-3">
+                  <label class="form-label lang-name">Nombre</label>
+                  <input type="text" class="form-control" id="name" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label lang-clientEmail">Email</label>
+                  <input type="email" class="form-control" id="emailCliente" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label lang-phone">Teléfono</label>
+                  <input type="text" class="form-control" id="phone" value="+5511" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label lang-cpf">CPF</label>
+                  <input type="text" class="form-control" id="cpf" required>
+                </div>
+                <div class="d-grid">
+                  <button type="submit" class="btn btn-afex lang-generateBtn">Generar QR</button>
+                </div>
               </form>
+              
+              <!-- Resultado QR -->
               <div id="qrResult" class="mt-4 text-center">
-                <p id="countdown" class="text-danger fw-bold"></p>
+                <!-- El contenido será generado dinámicamente -->
               </div>
             </div>
 
@@ -59,7 +104,7 @@
     </div>
   </div>
 
-<!-- Añadir esto para depuración -->
+<!-- Consola de depuración -->
 <div class="fixed-bottom bg-dark text-white p-2" style="max-height: 200px; overflow-y: auto; display: none;" id="debugConsole">
   <div id="debugLogs"></div>
 </div>

@@ -1,16 +1,34 @@
-[
+[[
   {
     "email": "afexlojista@teste.com",
+    "name": "AFEX Lojista",
     "password": "Welcome@123456*",
     "merchant_id": "3111",
     "renpix_email": "afexparceiro@teste.com",
     "renpix_password": "Welcome@123456*",
-    "requiereIdVentaTienda": true
+    "requiereIdVentaTienda": true,
+    "allowCLP": true,
+    "allowUSD": true,
+    "defaultCurrency": "CLP"
   },
   {
     "email": "mcaracci@gmail.com",
+    "name": "Marcelo Caracci",
     "password": "12345",
     "merchant_id": "2",
-    "ventaTiendaActiva": true
+    "ventaTiendaActiva": true,
+    "allowCLP": true,
+    "allowUSD": false,
+    "defaultCurrency": "CLP"
+  },
+  {
+    "email": "dolar@afex.cl",
+    "name": "Operador USD",
+    "password": "12345",
+    "merchant_id": "3",
+    "ventaTiendaActiva": true,
+    "allowCLP": false,
+    "allowUSD": true,
+    "defaultCurrency": "USD"
   }
 ]

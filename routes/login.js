@@ -1,27 +1,3 @@
-/*
-const express = require('express');
-const fs = require('fs');
-const router = express.Router();
-
-router.post('/', (req, res) => {
-  const { email, password } = req.body;
-  const users = JSON.parse(fs.readFileSync('./db/users.json'));
-  const user = users.find(u => u.email === email && u.password === password);
-  if (user) {
-    res.json({
-      success: true,
-      renpix_email: user.renpix_email,
-      renpix_password: user.renpix_password,
-      merchant_id: user.merchant_id,
-      requiereIdVentaTienda: user.requiereIdVentaTienda
-    });
-  } else {
-    res.json({ success: false });
-  }
-});
-module.exports = router;
-*/
-
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -57,10 +33,16 @@ router.post('/', (req, res) => {
       console.log(`✅ Login exitoso para: ${email}`);
       res.json({
         success: true,
+        email: user.email,
+        userName: user.name || user.email, // Nombre para mostrar
         renpix_email: user.renpix_email || process.env.RENPIX_EMAIL,
         renpix_password: user.renpix_password || process.env.RENPIX_PASSWORD,
         merchant_id: user.merchant_id || process.env.RENPIX_MERCHANT_ID,
-        requiereIdVentaTienda: user.requiereIdVentaTienda || false
+        requiereIdVentaTienda: user.requiereIdVentaTienda || false,
+        // Estos son los nuevos campos para control de moneda
+        allowCLP: user.allowCLP !== false, // Por defecto permitido
+        allowUSD: user.allowUSD === true, // Por defecto no permitido
+        defaultCurrency: user.defaultCurrency || 'CLP' // Moneda por defecto
       });
     } else {
       console.log(`❌ Login fallido para: ${email}`);
