@@ -1015,5 +1015,35 @@
     "status": "PENDIENTE",
     "originalCurrency": "CLP",
     "webhookUrl": "http://localhost:3000/api/webhook"
+  },
+  {
+    "id": "67e60c69-2f40-4cb2-8f7c-bcc395c939f2",
+    "name": "marcelo Caracci",
+    "email": "mcaracci@gmail.com",
+    "phone": "+5511123456789",
+    "cpf": "12979230901",
+    "amountCLP": "50000",
+    "amountUSD": "52.91",
+    "amountBRL": "312.76",
+    "date": "2025-05-20T20:24:16.540Z",
+    "status": "PENDIENTE",
+    "originalCurrency": "CLP",
+    "webhookUrl": "http://localhost:3000/api/webhook",
+    "userEmail": "afexlojista@teste.com"
+  },
+  {
+    "id": "78eff273-c0e9-4d5e-9f4f-ab7d31ff3890",
+    "name": "marcelo Caracci",
+    "email": "mcaracci@gmail.com",
+    "phone": "+5511123456789",
+    "cpf": "12979230901",
+    "amountCLP": "472500",
+    "amountUSD": "500",
+    "amountBRL": "2956.05",
+    "date": "2025-05-20T20:25:24.830Z",
+    "status": "PENDIENTE",
+    "originalCurrency": "USD",
+    "webhookUrl": "http://localhost:3000/api/webhook",
+    "userEmail": "dolar@afex.cl"
   }
 ]

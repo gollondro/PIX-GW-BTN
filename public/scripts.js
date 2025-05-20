@@ -1,7 +1,6 @@
 // Variable global para la sesión
 let session = null;
 let currentCurrency = 'CLP';
-let currentLang = 'es';
 let debugModeEnabled = false;
 
 // Función de validación de CPF brasileño
@@ -50,6 +49,7 @@ function toggleDebugMode() {
   // Guardar en localStorage para compartir entre páginas
   localStorage.setItem('debugMode', debugModeEnabled ? 'enabled' : 'disabled');
   
+  console.log('Modo depuración ' + (debugModeEnabled ? 'activado' : 'desactivado'));
   debugLog('Modo depuración ' + (debugModeEnabled ? 'activado' : 'desactivado'));
 }
 
@@ -83,97 +83,6 @@ function clearDebugLogs() {
     debugLogs.innerHTML = '';
     debugLog('Consola limpiada');
   }
-}
-
-// Asegurarse de que las traducciones estén definidas
-if (typeof translations === 'undefined') {
-  console.log('Inicializando traducciones predeterminadas...');
-  var translations = {
-    es: {
-      email: "Email",
-      password: "Contraseña",
-      loginBtn: "Entrar",
-      amount: "Monto",
-      amountCLP: "Monto en CLP",
-      amountUSD: "Monto en USD",
-      name: "Nombre",
-      clientEmail: "Email",
-      phone: "Teléfono",
-      cpf: "CPF",
-      generateBtn: "Generar QR",
-      logout: "Cerrar sesión",
-      currency: "Moneda",
-      qrTitle: "Detalles del pago con PIX",
-      amountLabel: "Monto:",
-      exchangeRate: "Tasa de cambio:",
-      brazilianTax: "Tasa Brasil (vet):",
-      clientWillPay: "El cliente pagará en BRL:",
-      paymentLink: "Enlace de pago:",
-	  countdown: "Tiempo restante:",
-      qrExpired: "⚠️ El código QR ha expirado.",
-      paymentReceived: "✅ Pago recibido",
-      amountPaid: "Monto pagado:",
-      client: "Cliente:",
-      date: "Fecha:",
-      debug: "Debug"
-    },
-    en: {
-      email: "Email",
-      password: "Password",
-      loginBtn: "Login",
-      amount: "Amount",
-      amountCLP: "Amount in CLP",
-      amountUSD: "Amount in USD",
-      name: "Name",
-      clientEmail: "Email",
-      phone: "Phone",
-      cpf: "CPF",
-      generateBtn: "Generate QR",
-      logout: "Logout",
-      currency: "Currency",
-      qrTitle: "PIX Payment Details",
-      amountLabel: "Amount:",
-      exchangeRate: "Exchange rate:",
-      brazilianTax: "Brazil rate (vet):",
-      clientWillPay: "Client will pay in BRL:",
-      paymentLink: "Payment link:",
-      countdown: "Time remaining:",
-      qrExpired: "⚠️ QR code has expired.",
-      paymentReceived: "✅ Payment received",
-      amountPaid: "Amount paid:",
-      client: "Client:",
-      date: "Date:",
-      debug: "Debug"
-    },
-    pt: {
-      email: "Email",
-      password: "Senha",
-      loginBtn: "Entrar",
-      amount: "Valor",
-      amountCLP: "Valor em CLP",
-      amountUSD: "Valor em USD",
-      name: "Nome",
-      clientEmail: "Email",
-      phone: "Telefone",
-      cpf: "CPF",
-      generateBtn: "Gerar QR",
-      logout: "Sair",
-      currency: "Moeda",
-      qrTitle: "Detalhes do pagamento PIX",
-      amountLabel: "Valor:",
-      exchangeRate: "Taxa de câmbio:",
-      brazilianTax: "Taxa Brasil (vet):",
-      clientWillPay: "O cliente pagará em BRL:",
-      paymentLink: "Link de pagamento:",
-      countdown: "Tempo restante:",
-      qrExpired: "⚠️ O código QR expirou.",
-      paymentReceived: "✅ Pagamento recebido",
-      amountPaid: "Valor pago:",
-      client: "Cliente:",
-      date: "Data:",
-      debug: "Debug"
-    }
-  };
 }
 
 // Función para cambiar el idioma
@@ -333,6 +242,7 @@ function updateAmountLabel() {
 // Inicialización cuando el DOM está listo
 document.addEventListener('DOMContentLoaded', function() {
   console.log('🚀 Inicializando aplicación...');
+  debugLog('🚀 Inicializando aplicación...');
   
   // Verificar si el modo depuración estaba activo
   const savedDebugMode = localStorage.getItem('debugMode');
