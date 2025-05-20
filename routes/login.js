@@ -5,6 +5,7 @@ const router = express.Router();
 
 router.post('/', (req, res) => {
   try {
+    console.log('Recibida solicitud de login:', req.body);
     const { email, password } = req.body;
     
     // Validar datos de entrada
@@ -26,24 +27,37 @@ router.post('/', (req, res) => {
       });
     }
     
-    const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+    console.log('Leyendo archivo de usuarios:', usersFile);
+    const rawData = fs.readFileSync(usersFile, 'utf8');
+    console.log('Contenido del archivo:', rawData.substring(0, 100) + '...');
+    
+    const users = JSON.parse(rawData);
+    console.log(`Usuarios encontrados: ${users.length}`);
+    
     const user = users.find(u => u.email === email && u.password === password);
     
     if (user) {
       console.log(`✅ Login exitoso para: ${email}`);
-      res.json({
+      
+      // Mantener la estructura de respuesta compatible con la versión anterior
+      // pero añadir los nuevos campos con valores por defecto
+      const response = {
         success: true,
         email: user.email,
-        userName: user.name || user.email, // Nombre para mostrar
         renpix_email: user.renpix_email || process.env.RENPIX_EMAIL,
         renpix_password: user.renpix_password || process.env.RENPIX_PASSWORD,
         merchant_id: user.merchant_id || process.env.RENPIX_MERCHANT_ID,
-        requiereIdVentaTienda: user.requiereIdVentaTienda || false,
-        // Estos son los nuevos campos para control de moneda
-        allowCLP: user.allowCLP !== false, // Por defecto permitido
-        allowUSD: user.allowUSD === true, // Por defecto no permitido
-        defaultCurrency: user.defaultCurrency || 'CLP' // Moneda por defecto
-      });
+        requiereIdVentaTienda: user.requiereIdVentaTienda || false
+      };
+      
+      // Añadir nuevos campos solo si están presentes en el usuario
+      if (user.name) response.userName = user.name;
+      if (user.allowCLP !== undefined) response.allowCLP = user.allowCLP;
+      if (user.allowUSD !== undefined) response.allowUSD = user.allowUSD;
+      if (user.defaultCurrency) response.defaultCurrency = user.defaultCurrency;
+      
+      console.log('Respuesta de login:', response);
+      res.json(response);
     } else {
       console.log(`❌ Login fallido para: ${email}`);
       res.json({ 
@@ -55,7 +69,7 @@ router.post('/', (req, res) => {
     console.error('❌ Error en login:', error);
     res.status(500).json({ 
       success: false, 
-      error: "Error del servidor" 
+      error: "Error del servidor: " + error.message 
     });
   }
 });

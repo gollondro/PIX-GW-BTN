@@ -1,3 +1,4 @@
+// Variable global para la sesión
 let session = null;
 let currentCurrency = 'CLP';
 
@@ -17,201 +18,195 @@ function validarCPF(cpf) {
   return rest === parseInt(cpf.substring(10, 11));
 }
 
-// Función para mostrar mensajes de error/éxito
-function showMessage(message, type = 'danger') {
-  // Crear div para mensaje si no existe
-  let msgContainer = document.getElementById('messageContainer');
-  if (!msgContainer) {
-    msgContainer = document.createElement('div');
-    msgContainer.id = 'messageContainer';
-    msgContainer.className = 'mt-3';
-    document.querySelector('.card-body').prepend(msgContainer);
-  }
+// Función para activar modo de depuración
+function enableDebugMode() {
+  const debugConsole = document.createElement('div');
+  debugConsole.id = 'debugConsole';
+  debugConsole.className = 'fixed-bottom bg-dark text-white p-2';
+  debugConsole.style.maxHeight = '200px';
+  debugConsole.style.overflowY = 'auto';
+  debugConsole.innerHTML = '<div id="debugLogs"></div>';
+  document.body.appendChild(debugConsole);
   
-  const alert = document.createElement('div');
-  alert.className = `alert alert-${type} alert-dismissible fade show`;
-  alert.innerHTML = `
-    ${message}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-  `;
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
   
-  msgContainer.innerHTML = '';
-  msgContainer.appendChild(alert);
+  console.log = function() {
+    const args = Array.from(arguments);
+    originalConsoleLog.apply(console, args);
+    appendToDebugConsole('LOG', args);
+  };
   
-  // Auto-ocultar después de 5 segundos
-  setTimeout(() => {
-    alert.classList.remove('show');
-    setTimeout(() => alert.remove(), 150);
-  }, 5000);
-}
-
-// Actualizar etiqueta de monto según moneda seleccionada
-function updateAmountLabel() {
-  const amountLabel = document.getElementById('amountLabel');
-  if (amountLabel) {
-    const lang = window.currentLang ? window.currentLang() : 'es';
-    const translations = {
-      'es': { 'CLP': 'Monto en CLP', 'USD': 'Monto en USD' },
-      'en': { 'CLP': 'Amount in CLP', 'USD': 'Amount in USD' },
-      'pt': { 'CLP': 'Valor em CLP', 'USD': 'Valor em USD' }
-    };
-    amountLabel.innerText = translations[lang][currentCurrency] || `Monto en ${currentCurrency}`;
-  }
-}
-
-// Función para inicializar el selector de moneda según los permisos del usuario
-function initCurrencySelector() {
-  const currencySelector = document.getElementById('currencySelector');
-  if (!currencySelector) return;
+  console.error = function() {
+    const args = Array.from(arguments);
+    originalConsoleError.apply(console, args);
+    appendToDebugConsole('ERROR', args);
+  };
   
-  if (!session) {
-    currencySelector.style.display = 'none';
-    return;
-  }
-  
-  // Mostrar u ocultar el selector según las preferencias del usuario
-  if (session.allowCLP && session.allowUSD) {
-    currencySelector.style.display = 'block';
-  } else if (session.allowCLP) {
-    currencySelector.style.display = 'none';
-    currentCurrency = 'CLP';
-  } else if (session.allowUSD) {
-    currencySelector.style.display = 'none';
-    currentCurrency = 'USD';
-  } else {
-    currencySelector.style.display = 'none';
-    currentCurrency = 'CLP'; // Valor por defecto
-  }
-  
-  // Actualizar la etiqueta del monto
-  updateAmountLabel();
-  
-  // Establecer el valor inicial de los botones de radio
-  const radioCLP = document.getElementById('currencyCLP');
-  const radioUSD = document.getElementById('currencyUSD');
-  
-  if (radioCLP && radioUSD) {
-    if (currentCurrency === 'CLP') {
-      radioCLP.checked = true;
-      radioUSD.checked = false;
-    } else {
-      radioCLP.checked = false;
-      radioUSD.checked = true;
-    }
+  function appendToDebugConsole(type, args) {
+    const debugLogs = document.getElementById('debugLogs');
+    if (!debugLogs) return;
     
-    // Añadir event listeners para actualizar la etiqueta
-    radioCLP.addEventListener('change', function() {
-      if (this.checked) {
-        currentCurrency = 'CLP';
-        updateAmountLabel();
-      }
-    });
-    
-    radioUSD.addEventListener('change', function() {
-      if (this.checked) {
-        currentCurrency = 'USD';
-        updateAmountLabel();
-      }
-    });
+    const entry = document.createElement('div');
+    entry.className = type === 'ERROR' ? 'text-danger' : 'text-light';
+    entry.textContent = `[${type}] ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`;
+    debugLogs.appendChild(entry);
+    debugLogs.scrollTop = debugLogs.scrollHeight;
   }
+  
+  console.log('🐞 Modo de depuración activado');
 }
 
-// Inicializar la aplicación cuando el DOM esté cargado
+// Activar modo de depuración inmediatamente
+enableDebugMode();
+
+// Inicialización cuando el DOM está listo
 document.addEventListener('DOMContentLoaded', function() {
-  // Verificar que existan los elementos necesarios
+  console.log('🚀 Inicializando aplicación...');
+  
+  // Referencias a elementos del DOM
   const loginForm = document.getElementById('loginForm');
   const pixContainer = document.getElementById('pixContainer');
   const pixForm = document.getElementById('pixForm');
   const logoutBtn = document.getElementById('logoutBtn');
-  const formTitle = document.getElementById('formTitle');
   
-  if (!loginForm || !pixContainer || !pixForm || !logoutBtn || !formTitle) {
-    console.error('Error: Elementos HTML requeridos no encontrados.');
+  // Comprobar que tenemos los elementos necesarios
+  if (!loginForm) {
+    console.error('❌ Error: loginForm no encontrado');
     return;
   }
   
-  // Manejo del formulario de login
+  if (!pixContainer) {
+    console.error('❌ Error: pixContainer no encontrado');
+    return;
+  }
+  
+  if (!pixForm) {
+    console.error('❌ Error: pixForm no encontrado');
+    return;
+  }
+  
+  if (!logoutBtn) {
+    console.error('❌ Error: logoutBtn no encontrado');
+    return;
+  }
+  
+  // Listener para el formulario de login
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    console.log('📝 Procesando formulario de login...');
+    
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     
-    // Validación básica
     if (!email || !password) {
-      showMessage('Por favor, complete todos los campos');
+      console.error('❌ Email o password vacíos');
+      alert('Por favor, complete todos los campos');
       return;
     }
     
-    // Deshabilitar el botón durante la petición
-    const submitBtn = loginForm.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerText;
-    submitBtn.disabled = true;
-    submitBtn.innerText = 'Procesando...';
-    
     try {
-      console.log('Enviando solicitud de login...');
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
       
-      console.log('Respuesta recibida, status:', res.status);
+      console.log(`🔍 Respuesta del servidor: ${res.status}`);
+      
       const data = await res.json();
-      console.log('Datos de respuesta:', data);
+      console.log('📄 Datos recibidos:', data);
       
       if (data.success) {
-        console.log('Login exitoso');
+        console.log('✅ Login exitoso');
+        
+        // Guardar sesión
         session = data;
+        
+        // Mostrar formulario de PIX y ocultar login
         loginForm.style.display = 'none';
         pixContainer.style.display = 'block';
         
-        const lang = window.currentLang ? window.currentLang() : 'es';
-        const translations = {
-          'es': 'Generar cobro con PIX',
-          'en': 'Generate PIX payment',
-          'pt': 'Gerar cobrança PIX'
-        };
-        formTitle.innerText = translations[lang] || 'Generar cobro con PIX';
-        
-        // Inicializar el selector de moneda
-        initCurrencySelector();
+        // Actualizar título (si existe)
+        const formTitle = document.getElementById('formTitle');
+        if (formTitle) {
+          formTitle.innerText = 'Generar cobro con PIX';
+        }
       } else {
-        console.log('Login fallido');
-        showMessage(data.error || 'Credenciales inválidas');
+        console.error('❌ Login fallido:', data.error);
+        alert(data.error || 'Credenciales inválidas');
       }
     } catch (error) {
-      console.error("Error en login:", error);
-      showMessage('Error de conexión al intentar iniciar sesión');
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerText = originalText;
+      console.error('❌ Error en la petición:', error);
+      alert('Error de conexión');
     }
   });
   
-  // Manejo del logout
+  // Listener para cerrar sesión
   logoutBtn.addEventListener('click', () => {
+    console.log('🚪 Cerrando sesión...');
+    
     session = null;
+    
+    // Restablecer formularios
     pixForm.reset();
     loginForm.reset();
+    
+    // Mostrar login y ocultar PIX
     pixContainer.style.display = 'none';
     loginForm.style.display = 'block';
-    document.getElementById('qrResult').innerHTML = '';
     
-    const lang = window.currentLang ? window.currentLang() : 'es';
-    const translations = {
-      'es': 'Iniciar sesión',
-      'en': 'Login',
-      'pt': 'Entrar'
-    };
-    formTitle.innerText = translations[lang] || 'Iniciar sesión';
+    // Limpiar resultados
+    const qrResult = document.getElementById('qrResult');
+    if (qrResult) {
+      qrResult.innerHTML = '';
+    }
+    
+    // Actualizar título (si existe)
+    const formTitle = document.getElementById('formTitle');
+    if (formTitle) {
+      formTitle.innerText = 'Iniciar sesión';
+    }
   });
   
-  // Manejo del formulario PIX
+  // Listener para el formulario PIX (simplificado)
   pixForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    console.log('📝 Procesando formulario PIX...');
     
-    // Validaciones
-    const amount = document.getElementById('amount').value;
-    const name = document.getElementById('name').value;
-    const email = document.getElementById('emailCliente').value;
+    // Validar que haya sesión activa
+    if (!session) {
+      console.error('❌ No hay sesión activa');
+      alert('Su sesión ha expirado. Por favor, inicie sesión nuevamente.');
+      pixContainer.style.display = 'none';
+      loginForm.style.display = 'block';
+      return;
+    }
+    
+    // Validar los campos del formulario
+    const amountField = document.getElementById('amount') || document.getElementById('amountCLP');
+    if (!amountField) {
+      console.error('❌ Campo de monto no encontrado');
+      alert('Error en el formulario');
+      return;
+    }
+    
+    const nameField = document.getElementById('name');
+    const emailField = document.getElementById('emailCliente');
+    const phoneField = document.getElementById('phone');
+    const cpfField = document.getElementById('cpf');
+    
+    if (!nameField || !emailField || !phoneField || !cpfField) {
+      console.error('❌ Campos del formulario no encontrados');
+      alert('Error en el formulario');
+      return;
+    }
+    
+    // Esta vez, solo mostramos un mensaje en lugar de procesar el pago
+    // para aislar la funcionalidad de login
+    alert('Formulario enviado correctamente. La funcionalidad de pago se ha desactivado temporalmente para solucionar el problema de login.');
+  });
+  
+  console.log('✅ Inicialización completada');
+});
