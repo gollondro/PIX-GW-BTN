@@ -65,6 +65,14 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
     console.log('💰 Generando solicitud de cobro para:', customer.name, 'Monto:', amountUSD, 'USD');
     console.log('🔑 Control Number:', controlNumber);
     console.log('🔑 Merchant ID:', process.env.RENPIX_MERCHANT_ID);
+    
+    // Verificar que tenemos una URL de webhook configurada
+    if (!process.env.RENPIX_WEBHOOK) {
+      console.warn('⚠️ ADVERTENCIA: No se ha configurado RENPIX_WEBHOOK en variables de entorno');
+      console.warn('⚠️ Las notificaciones de pago no se recibirán correctamente');
+    } else {
+      console.log('📡 Webhook URL:', process.env.RENPIX_WEBHOOK);
+    }
 
     // Asegurarse de que el monto es un número
     const purchase = parseFloat(amountUSD);
@@ -72,6 +80,7 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
       throw new Error(`Monto inválido: ${amountUSD}`);
     }
 
+    // Construir el payload con el webhook explícito
     const payload = {
       merchantId: Number(process.env.RENPIX_MERCHANT_ID),
       purchase: purchase,
@@ -79,13 +88,16 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
       controlNumber: controlNumber,
       phone: customer.phone,
       email: customer.email,
-      webhook: process.env.RENPIX_WEBHOOK,
+      webhook: process.env.RENPIX_WEBHOOK || "http://localhost:3000/api/webhook", // Usar URL por defecto si no está configurada
       currencyCode: 'USD',
       operationCode: 1,
       beneficiary: customer.name
     };
 
-    console.log('📦 Payload:', JSON.stringify(payload));
+    console.log('📦 Payload completo:', JSON.stringify(payload));
+    
+    // Destacar el webhook en los logs
+    console.log('📣 URL del webhook enviada:', payload.webhook);
 
     const res = await axios.post(`${process.env.RENPIX_API_URL}/sell`, payload, {
       headers: {
@@ -125,11 +137,12 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
 
     console.log('✅ Cobro generado exitosamente');
     
-    // Combinar la respuesta con el controlNumber original
+    // Combinar la respuesta con el controlNumber original y añadir el webhook usado
     return {
       ...res.data.data,
       transactionId: controlNumber,
-      controlNumber
+      controlNumber,
+      webhookUrl: payload.webhook // Incluir la URL del webhook en la respuesta para referencia
     };
   } catch (error) {
     console.error('❌ Error al generar cobro PIX:', error.message);

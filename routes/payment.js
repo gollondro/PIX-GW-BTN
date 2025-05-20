@@ -77,6 +77,10 @@ router.post('/', async (req, res) => {
       phone,
       cpf
     };
+
+    // Verificar que tenemos configurado el webhook
+    const webhookUrl = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
+    console.log('?? Webhook URL configurada:', webhookUrl);
     
     // Llamar a la API de Rendix para crear la solicitud de pago
     console.log('?? Conectando con API de RENPIX...');
@@ -124,6 +128,7 @@ router.post('/', async (req, res) => {
     
     // Calcular el monto en BRL
     const parsedUSD = parseFloat(amountUSD);
+    let amountBRL;
     if (!isNaN(parsedUSD)) {
       amountBRL = (parsedUSD * usdToBrlRate).toFixed(2);
       console.log('?? Monto en BRL calculado:', amountBRL);
@@ -153,7 +158,8 @@ router.post('/', async (req, res) => {
       amountBRL,
       date: new Date().toISOString(),
       status: 'PENDIENTE',
-      originalCurrency
+      originalCurrency,
+      webhookUrl // Guardar la URL del webhook para referencia
     };
     
     // Guardar en la base de datos de transacciones pendientes
@@ -181,6 +187,7 @@ router.post('/', async (req, res) => {
       amountBRL,
       rateCLPperUSD,
       vetTax: vetTaxFormatted, // Usar el formato correcto sin %
+      webhookUrl: pixResponse.webhookUrl || webhookUrl, // Incluir la URL del webhook en la respuesta
       qrData: {
         pixCopyPast: pixResponse.pixCopyPast || pixResponse.url || `https://example.com/pix/${transactionId}`,
         qrCodeBase64: pixResponse.qrCodeBase64 || pixResponse.qrCode
