@@ -1,1 +1,16 @@
-[{"email":"afexlojista@teste.com","password":"Welcome@123456*","merchant_id":"3111","renpix_email":"afexparceiro@teste.com","renpix_password":"Welcome@123456*","requiereIdVentaTienda":true}]
+[
+  {
+    "email": "afexlojista@teste.com",
+    "password": "Welcome@123456*",
+    "merchant_id": "3111",
+    "renpix_email": "afexparceiro@teste.com",
+    "renpix_password": "Welcome@123456*",
+    "requiereIdVentaTienda": true
+  },
+  {
+    "email": "mcaracci@gmail.com",
+    "password": "12345",
+    "merchant_id": "2",
+    "ventaTiendaActiva": true
+  }
+]

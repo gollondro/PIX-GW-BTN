@@ -1,23 +1,51 @@
 const translations = {
-  es: { loginTitle: "Iniciar sesión", email: "Email", password: "Contraseña", enter: "Entrar", amountCLP: "Monto en CLP", name: "Nombre", phone: "Teléfono", cpf: "CPF", generateQR: "Generar QR", logout: "Cerrar sesión" },
-  en: { loginTitle: "Log in", email: "Email", password: "Password", enter: "Enter", amountCLP: "Amount in CLP", name: "Name", phone: "Phone", cpf: "CPF", generateQR: "Generate QR", logout: "Logout" },
-  pt: { loginTitle: "Entrar", email: "Email", password: "Senha", enter: "Entrar", amountCLP: "Valor em CLP", name: "Nome", phone: "Telefone", cpf: "CPF", generateQR: "Gerar QR", logout: "Sair" }
+  es: {
+    email: "Email",
+    password: "Contraseña",
+    loginBtn: "Entrar",
+    amount: "Monto en CLP",
+    name: "Nombre",
+    clientEmail: "Email",
+    phone: "Teléfono",
+    cpf: "CPF",
+    generateBtn: "Generar QR"
+  },
+  en: {
+    email: "Email",
+    password: "Password",
+    loginBtn: "Login",
+    amount: "Amount in CLP",
+    name: "Name",
+    clientEmail: "Email",
+    phone: "Phone",
+    cpf: "CPF",
+    generateBtn: "Generate QR"
+  },
+  pt: {
+    email: "Email",
+    password: "Senha",
+    loginBtn: "Entrar",
+    amount: "Valor em CLP",
+    name: "Nome",
+    clientEmail: "Email",
+    phone: "Telefone",
+    cpf: "CPF",
+    generateBtn: "Gerar QR"
+  }
 };
+
 function setLang(lang) {
-  localStorage.setItem("lang", lang); applyLang(lang);
+  localStorage.setItem('lang', lang);
+  document.querySelector('.lang-email').innerText = translations[lang].email;
+  document.querySelector('.lang-password').innerText = translations[lang].password;
+  document.querySelector('.lang-login-btn').innerText = translations[lang].loginBtn;
+  document.querySelector('.lang-amount').innerText = translations[lang].amount;
+  document.querySelector('.lang-name').innerText = translations[lang].name;
+  document.querySelector('.lang-client-email').innerText = translations[lang].clientEmail;
+  document.querySelector('.lang-phone').innerText = translations[lang].phone;
+  document.querySelector('.lang-cpf').innerText = translations[lang].cpf;
+  document.querySelector('.lang-generate-btn').innerText = translations[lang].generateBtn;
 }
-function applyLang(lang) {
-  const elements = document.querySelectorAll(".lang");
-  elements.forEach(el => {
-    const key = el.getAttribute("data-key");
-    if (translations[lang][key]) {
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") el.placeholder = translations[lang][key];
-      else el.innerText = translations[lang][key];
-    }
-  });
-  document.getElementById("formTitle").innerText = translations[lang].loginTitle;
-}
-document.addEventListener("DOMContentLoaded", () => {
-  const lang = localStorage.getItem("lang") || "es";
-  applyLang(lang);
-});
+
+const savedLang = localStorage.getItem('lang') || 'es';
+setLang(savedLang);

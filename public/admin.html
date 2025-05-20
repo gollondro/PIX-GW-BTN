@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin - PIX Gateway</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .bg-afex { background-color: #00A859; }
+    .btn-afex { background-color: #00A859; color: white; }
+    .btn-afex:hover { background-color: #007a4d; }
+  </style>
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-dark bg-afex px-3">
+    <a class="navbar-brand" href="#"><img src="/img/afex-logo.png" height="40" alt="Afex"> Admin PIX</a>
+    <button id="logoutBtn" class="btn btn-danger btn-sm">Logout</button>
+  </nav>
+
+  <div class="container mt-4">
+    <ul class="nav nav-tabs mb-3" id="adminTabs">
+      <li class="nav-item"><a class="nav-link active" href="#" onclick="showTab('usuarios')">Usuarios</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('transacciones')">Transacciones</a></li>
+    </ul>
+
+    <!-- Usuarios -->
+    <div id="usuarios" class="tab-content">
+      <div class="d-flex justify-content-between mb-2">
+        <h5>Usuarios registrados</h5>
+        <button class="btn btn-afex btn-sm" data-bs-toggle="modal" data-bs-target="#modalUsuario">Agregar Usuario</button>
+      </div>
+      <table class="table table-sm table-striped">
+        <thead><tr><th>Email</th><th>Merchant</th><th>Activo</th><th></th></tr></thead>
+        <tbody id="usuariosBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Transacciones -->
+    <div id="transacciones" class="tab-content" style="display: none;">
+      <div class="mb-2"><h5>Transacciones</h5></div>
+      <div class="row mb-2">
+        <div class="col-md-3"><input type="date" id="filtroDesde" class="form-control" /></div>
+        <div class="col-md-3"><input type="date" id="filtroHasta" class="form-control" /></div>
+        <div class="col-md-3">
+          <select id="filtroEstado" class="form-select">
+            <option value="">Todos</option>
+            <option value="PENDIENTE">Pendientes</option>
+            <option value="PAGADO">Pagadas</option>
+            <option value="EXPIRADO">Expiradas</option>
+          </select>
+        </div>
+        <div class="col-md-3"><button class="btn btn-afex w-100" onclick="filtrar()">Filtrar</button></div>
+      </div>
+      <table class="table table-sm table-bordered">
+        <thead>
+          <tr><th>Fecha</th><th>Cliente</th><th>CLP</th><th>USD</th><th>BRL</th><th>Estado</th></tr>
+        </thead>
+        <tbody id="transaccionesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal usuario -->
+  <div class="modal fade" id="modalUsuario" tabindex="-1">
+    <div class="modal-dialog">
+      <form class="modal-content" id="formUsuario">
+        <div class="modal-header"><h5 class="modal-title">Usuario</h5></div>
+        <div class="modal-body">
+          <input type="hidden" id="usuarioIdx">
+          <div class="mb-2"><label>Email</label><input class="form-control" id="userEmail"></div>
+          <div class="mb-2"><label>Password</label><input class="form-control" id="userPass"></div>
+          <div class="mb-2"><label>Merchant ID</label><input class="form-control" id="userMerchant"></div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="userTiendaActiva">
+            <label class="form-check-label" for="userTiendaActiva">Tiene ID venta tienda activo</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-afex">Guardar</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+.bg-afex {
+  background-color: #00A859;
+}
+.text-afex {
+  color: #00A859;
+}
+.btn-afex {
+  background-color: #00A859;
+  color: #fff;
+  border: none;
+}
+.btn-afex:hover {
+  background-color: #007A4D;
+}
