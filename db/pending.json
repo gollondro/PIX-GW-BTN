@@ -1001,5 +1001,19 @@
     "date": "2025-05-20T18:27:00.737Z",
     "status": "PENDIENTE",
     "originalCurrency": "USD"
+  },
+  {
+    "id": "ad1b01ae-8e57-48a7-9216-819c862a8633",
+    "name": "marcelo Caracci",
+    "email": "mcaracci@gmail.com",
+    "phone": "+5511123456789",
+    "cpf": "12979230901",
+    "amountCLP": "50000",
+    "amountUSD": "52.91",
+    "amountBRL": "312.84",
+    "date": "2025-05-20T19:43:16.346Z",
+    "status": "PENDIENTE",
+    "originalCurrency": "CLP",
+    "webhookUrl": "http://localhost:3000/api/webhook"
   }
 ]
