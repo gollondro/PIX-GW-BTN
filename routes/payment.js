@@ -90,12 +90,17 @@ router.post('/', async (req, res) => {
     console.log('?? Respuesta API RENPIX:', pixResponse);
     
     // Calcular monto en BRL (usando datos reales de la API si estan disponibles)
-    let amountBRL = pixResponse.amount;
-    if (!amountBRL) {
-      // Si la API no devuelve el monto en BRL, calcularlo con la tasa aproximada
-      const usdToBRL = 5.3; // Tasa USD a BRL de ejemplo
-      amountBRL = (parseFloat(amountUSD) * usdToBRL).toFixed(2);
-    }
+   let amountBRL = pixResponse.amount || pixResponse.amountBRL;
+// Obtener el vetTax directamente desde la API
+let vetTax = pixResponse.vetTax || pixResponse.tax || pixResponse.taxRate;
+
+// Si no hay formato de porcentaje y es un numero, formatearlo
+if (typeof vetTax === 'number') {
+  vetTax = (vetTax * 100).toFixed(2) + '%';
+} else if (typeof vetTax === 'string' && !vetTax.includes('%')) {
+  // Si es un string pero no contiene %, agregar el simbolo
+  vetTax = vetTax + '%';
+}
     
     // Preparar registro para almacenar
     const transaction = {
