@@ -20,13 +20,18 @@ function validarCPF(cpf) {
 
 // Función para activar modo de depuración
 function enableDebugMode() {
-  const debugConsole = document.createElement('div');
-  debugConsole.id = 'debugConsole';
-  debugConsole.className = 'fixed-bottom bg-dark text-white p-2';
-  debugConsole.style.maxHeight = '200px';
-  debugConsole.style.overflowY = 'auto';
-  debugConsole.innerHTML = '<div id="debugLogs"></div>';
-  document.body.appendChild(debugConsole);
+  const debugConsole = document.getElementById('debugConsole');
+  if (debugConsole) {
+    debugConsole.style.display = 'block';
+  } else {
+    const newDebugConsole = document.createElement('div');
+    newDebugConsole.id = 'debugConsole';
+    newDebugConsole.className = 'fixed-bottom bg-dark text-white p-2';
+    newDebugConsole.style.maxHeight = '200px';
+    newDebugConsole.style.overflowY = 'auto';
+    newDebugConsole.innerHTML = '<div id="debugLogs"></div>';
+    document.body.appendChild(newDebugConsole);
+  }
   
   const originalConsoleLog = console.log;
   const originalConsoleError = console.error;
@@ -57,8 +62,39 @@ function enableDebugMode() {
   console.log('🐞 Modo de depuración activado');
 }
 
-// Activar modo de depuración inmediatamente
-enableDebugMode();
+// Función para iniciar el contador regresivo
+function startCountdown(expiresAt) {
+  if (!expiresAt) return;
+  
+  const countdownEl = document.getElementById('countdown');
+  if (!countdownEl) return;
+  
+  const expiryTime = new Date(expiresAt).getTime();
+  
+  // Limpiar cualquier intervalo anterior
+  if (window.countdownInterval) {
+    clearInterval(window.countdownInterval);
+  }
+  
+  // Actualizar cada segundo
+  window.countdownInterval = setInterval(() => {
+    const now = new Date().getTime();
+    const timeLeft = expiryTime - now;
+    
+    if (timeLeft <= 0) {
+      clearInterval(window.countdownInterval);
+      countdownEl.innerHTML = translations[currentLang || 'es'].qrExpired;
+      return;
+    }
+    
+    // Calcular minutos y segundos
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+    
+    // Mostrar tiempo restante
+    countdownEl.innerHTML = `${translations[currentLang || 'es'].countdown} ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  }, 1000);
+}
 
 // Inicialización cuando el DOM está listo
 document.addEventListener('DOMContentLoaded', function() {
@@ -69,6 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const pixContainer = document.getElementById('pixContainer');
   const pixForm = document.getElementById('pixForm');
   const logoutBtn = document.getElementById('logoutBtn');
+  const currencySelector = document.getElementById('currencySelector');
   
   // Comprobar que tenemos los elementos necesarios
   if (!loginForm) {
@@ -90,6 +127,9 @@ document.addEventListener('DOMContentLoaded', function() {
     console.error('❌ Error: logoutBtn no encontrado');
     return;
   }
+  
+  // Activar modo de depuración desde el principio
+  enableDebugMode();
   
   // Listener para el formulario de login
   loginForm.addEventListener('submit', async (e) => {
@@ -124,6 +164,36 @@ document.addEventListener('DOMContentLoaded', function() {
         // Guardar sesión
         session = data;
         
+        // Configurar selector de moneda según permisos del usuario
+        if (currencySelector) {
+          const showCurrencySelector = (data.allowCLP && data.allowUSD);
+          currencySelector.style.display = showCurrencySelector ? 'block' : 'none';
+          
+          // Establecer moneda por defecto según el usuario
+          currentCurrency = data.defaultCurrency || 'CLP';
+          
+          // Actualizar radio buttons
+          const currencyCLP = document.getElementById('currencyCLP');
+          const currencyUSD = document.getElementById('currencyUSD');
+          
+          if (currencyCLP && currencyUSD) {
+            if (currentCurrency === 'USD') {
+              currencyUSD.checked = true;
+              currencyCLP.checked = false;
+            } else {
+              currencyCLP.checked = true;
+              currencyUSD.checked = false;
+            }
+            
+            // Deshabilitar opciones no permitidas
+            currencyCLP.disabled = !data.allowCLP;
+            currencyUSD.disabled = !data.allowUSD;
+          }
+          
+          // Actualizar etiqueta del campo de monto
+          updateAmountLabel();
+        }
+        
         // Mostrar formulario de PIX y ocultar login
         loginForm.style.display = 'none';
         pixContainer.style.display = 'block';
@@ -131,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Actualizar título (si existe)
         const formTitle = document.getElementById('formTitle');
         if (formTitle) {
-          formTitle.innerText = 'Generar cobro con PIX';
+          formTitle.innerText = translations[currentLang || 'es'].qrTitle;
         }
       } else {
         console.error('❌ Login fallido:', data.error);
@@ -142,6 +212,27 @@ document.addEventListener('DOMContentLoaded', function() {
       alert('Error de conexión');
     }
   });
+  
+  // Listener para cambio de moneda
+  const radioButtons = document.querySelectorAll('input[name="currency"]');
+  radioButtons.forEach(radio => {
+    radio.addEventListener('change', function() {
+      currentCurrency = this.value;
+      updateAmountLabel();
+    });
+  });
+  
+  // Función para actualizar la etiqueta del campo de monto
+  function updateAmountLabel() {
+    const amountLabel = document.getElementById('amountLabel');
+    if (amountLabel) {
+      if (currentCurrency === 'USD') {
+        amountLabel.textContent = translations[currentLang || 'es'].amountUSD;
+      } else {
+        amountLabel.textContent = translations[currentLang || 'es'].amountCLP;
+      }
+    }
+  }
   
   // Listener para cerrar sesión
   logoutBtn.addEventListener('click', () => {
@@ -166,11 +257,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Actualizar título (si existe)
     const formTitle = document.getElementById('formTitle');
     if (formTitle) {
-      formTitle.innerText = 'Iniciar sesión';
+      formTitle.innerText = translations[currentLang || 'es'].loginBtn;
     }
   });
   
-  // Listener para el formulario PIX (simplificado)
+  // Listener para el formulario PIX
   pixForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     console.log('📝 Procesando formulario PIX...');
@@ -184,28 +275,104 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    // Validar los campos del formulario
-    const amountField = document.getElementById('amount') || document.getElementById('amountCLP');
-    if (!amountField) {
-      console.error('❌ Campo de monto no encontrado');
-      alert('Error en el formulario');
+    // Obtener y validar los valores del formulario
+    const amount = document.getElementById('amount').value;
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('emailCliente').value;
+    const phone = document.getElementById('phone').value;
+    const cpf = document.getElementById('cpf').value;
+    
+    if (!amount || !name || !email || !phone || !cpf) {
+      console.error('❌ Campos incompletos');
+      alert('Por favor complete todos los campos');
       return;
     }
     
-    const nameField = document.getElementById('name');
-    const emailField = document.getElementById('emailCliente');
-    const phoneField = document.getElementById('phone');
-    const cpfField = document.getElementById('cpf');
-    
-    if (!nameField || !emailField || !phoneField || !cpfField) {
-      console.error('❌ Campos del formulario no encontrados');
-      alert('Error en el formulario');
+    // Validar CPF
+    if (!validarCPF(cpf)) {
+      console.error('❌ CPF inválido');
+      alert('El CPF ingresado no es válido');
       return;
     }
     
-    // Esta vez, solo mostramos un mensaje en lugar de procesar el pago
-    // para aislar la funcionalidad de login
-    alert('Formulario enviado correctamente. La funcionalidad de pago se ha desactivado temporalmente para solucionar el problema de login.');
+    // Mostrar indicador de carga
+    const qrResult = document.getElementById('qrResult');
+    qrResult.innerHTML = '<div class="spinner-border text-afex" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Generando código QR...</p>';
+    
+    try {
+      // Determinar la moneda actual
+      const currency = document.querySelector('input[name="currency"]:checked')?.value || currentCurrency || 'CLP';
+      
+      // Preparar los datos a enviar
+      const formData = {
+        currency,
+        amount,
+        name,
+        email,
+        phone,
+        cpf
+      };
+      
+      // En el servidor, podría esperar amountCLP o amountUSD en lugar de solo 'amount'
+      if (currency === 'CLP') {
+        formData.amountCLP = amount;
+      } else {
+        formData.amountUSD = amount;
+      }
+      
+      // Log detallado para depuración
+      console.log('📤 Enviando datos detallados:');
+      Object.entries(formData).forEach(([key, value]) => {
+        console.log(`- ${key}: ${value}`);
+      });
+      
+      // Enviar solicitud al servidor con mejor manejo de errores
+      const response = await fetch('/api/payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      console.log('📥 Estado de la respuesta:', response.status);
+      
+      // Intentar obtener más detalles del error si la respuesta no es exitosa
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error detallado:', errorText);
+        
+        let errorMessage;
+        try {
+          // Intentar parsear como JSON si es posible
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorJson.message || `Error del servidor: ${response.status}`;
+        } catch {
+          // Si no es JSON, usar el texto directamente
+          errorMessage = errorText || `Error del servidor: ${response.status}`;
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      const data = await response.json();
+      console.log('📥 Respuesta recibida:', data);
+      
+      if (data.success) {
+        console.log('✅ QR generado exitosamente');
+        
+        // Renderizar el QR y la información
+        renderQRContent(data);
+        
+        // Iniciar contador de tiempo
+        startCountdown(data.expiresAt);
+      } else {
+        throw new Error(data.error || 'Error al generar el código QR');
+      }
+    } catch (error) {
+      console.error('❌ Error:', error);
+      qrResult.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
   });
   
   console.log('✅ Inicialización completada');
