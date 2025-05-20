@@ -12,6 +12,19 @@
     .btn-afex:hover { background-color: #007a4d; }
     .lang-flag { width: 24px; height: 16px; cursor: pointer; margin-left: 8px; }
     .currency-selector { margin-bottom: 15px; }
+    #debugConsole {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      display: none;
+      z-index: 9000;
+    }
+    #debugToggleBtn {
+      position: fixed;
+      right: 10px;
+      bottom: 10px;
+      z-index: 9999;
+    }
   </style>
 </head>
 <body class="bg-light">
@@ -23,6 +36,15 @@
       <img src="https://flagcdn.com/w40/br.png" class="lang-flag" data-lang="pt" alt="Português" />
     </div>
   </nav>
+  
+  <!-- Panel de depuración -->
+  <div id="debugConsole" class="bg-dark text-white p-2 mb-2">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <h6 class="m-0">Consola de Depuración</h6>
+      <button id="clearDebugBtn" class="btn btn-sm btn-outline-light">Limpiar</button>
+    </div>
+    <div id="debugLogs"></div>
+  </div>
 
   <div class="container py-5">
     <div class="row justify-content-center">
@@ -104,10 +126,8 @@
     </div>
   </div>
 
-<!-- Consola de depuración -->
-<div class="fixed-bottom bg-dark text-white p-2" style="max-height: 200px; overflow-y: auto; display: none;" id="debugConsole">
-  <div id="debugLogs"></div>
-</div>
+  <!-- Botón de depuración flotante -->
+  <button id="debugToggleBtn" class="btn btn-warning btn-sm">Debug</button>
 
 <script src="lang.js"></script>
 <script src="scripts.js"></script>

@@ -9,13 +9,36 @@
     .bg-afex { background-color: #00A859; }
     .btn-afex { background-color: #00A859; color: white; }
     .btn-afex:hover { background-color: #007a4d; }
+    .sortable { cursor: pointer; }
+    .sortable:hover { text-decoration: underline; }
+    .sortable::after { content: "⇅"; margin-left: 5px; opacity: 0.5; }
+    .sortable.asc::after { content: "↑"; opacity: 1; }
+    .sortable.desc::after { content: "↓"; opacity: 1; }
+    #debugConsole {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      display: none;
+    }
   </style>
 </head>
 <body class="bg-light">
   <nav class="navbar navbar-dark bg-afex px-3">
     <a class="navbar-brand" href="#"><img src="/img/afex-logo.png" height="40" alt="Afex"> Admin PIX</a>
-    <button id="logoutBtn" class="btn btn-danger btn-sm">Logout</button>
+    <div>
+      <button id="debugBtn" class="btn btn-warning btn-sm me-2">Modo Debug</button>
+      <button id="logoutBtn" class="btn btn-danger btn-sm">Logout</button>
+    </div>
   </nav>
+
+  <!-- Panel de depuración -->
+  <div id="debugConsole" class="bg-dark text-white p-2 mb-2">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <h6 class="m-0">Consola de Depuración</h6>
+      <button id="clearDebugBtn" class="btn btn-sm btn-outline-light">Limpiar</button>
+    </div>
+    <div id="debugLogs"></div>
+  </div>
 
   <div class="container mt-4">
     <ul class="nav nav-tabs mb-3" id="adminTabs">
@@ -80,7 +103,7 @@
       <table class="table table-sm table-bordered">
         <thead>
           <tr>
-            <th>Fecha</th>
+            <th class="sortable" data-sort="fecha">Fecha</th>
             <th>Cliente</th>
             <th>CLP</th>
             <th>USD</th>

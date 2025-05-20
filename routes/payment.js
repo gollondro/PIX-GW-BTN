@@ -7,15 +7,19 @@ const rendixApi = require('../services/rendixApi'); // Importar el servicio de A
 
 // Ruta para procesar pagos PIX
 router.post('/', async (req, res) => {
-  console.log('?? Recibida solicitud de pago:', req.body);
+  console.log('📦 Recibida solicitud de pago:', req.body);
   
   try {
     // Validar campos requeridos
     const { name, email, phone, cpf } = req.body;
     let { amountCLP, amountUSD, currency, amount } = req.body;
     
+    // Capturar información del usuario que genera la cotización
+    // El email del usuario logeado debería venir en el cuerpo de la solicitud
+    const userEmail = req.body.userEmail;
+    
     if (!name || !email || !phone || !cpf) {
-      console.error('? Campos obligatorios faltantes');
+      console.error('❌ Campos obligatorios faltantes');
       return res.status(400).json({ 
         success: false, 
         error: 'Todos los campos son obligatorios' 
@@ -34,7 +38,7 @@ router.post('/', async (req, res) => {
     
     // Asegurarse de que tenemos al menos un valor de monto
     if (!amountCLP && !amountUSD) {
-      console.error('? No se especifico ningun monto (CLP o USD)');
+      console.error('❌ No se especifico ningun monto (CLP o USD)');
       return res.status(400).json({
         success: false,
         error: 'Debe proporcionar un monto valido'
@@ -50,7 +54,7 @@ router.post('/', async (req, res) => {
         const rateData = JSON.parse(fs.readFileSync(rateFile, 'utf8'));
         rateCLPperUSD = rateData.rate || rateCLPperUSD;
       } catch (error) {
-        console.error('? Error al leer el archivo de tasa:', error);
+        console.error('❌ Error al leer el archivo de tasa:', error);
       }
     }
     
@@ -80,10 +84,10 @@ router.post('/', async (req, res) => {
 
     // Verificar que tenemos configurado el webhook
     const webhookUrl = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
-    console.log('?? Webhook URL configurada:', webhookUrl);
+    console.log('📡 Webhook URL configurada:', webhookUrl);
     
     // Llamar a la API de Rendix para crear la solicitud de pago
-    console.log('?? Conectando con API de RENPIX...');
+    console.log('🔄 Conectando con API de RENPIX...');
     
     const pixResponse = await rendixApi.createPixChargeLink({
       amountUSD: parseFloat(amountUSD),
@@ -91,7 +95,7 @@ router.post('/', async (req, res) => {
       controlNumber: transactionId
     });
     
-    console.log('?? Respuesta API RENPIX:', pixResponse);
+    console.log('📥 Respuesta API RENPIX:', pixResponse);
     
     // Obtener el tipo de cambio USD -> BRL (tasa Brasil)
     // La API devuelve diferentes formatos segun la implementacion
@@ -113,27 +117,27 @@ router.post('/', async (req, res) => {
     } else {
       // Si no encontramos la tasa, usar un valor por defecto
       usdToBrlRate = 5.3; // Un valor razonable de USD a BRL
-      console.warn('?? No se encontro tasa USD->BRL en la respuesta. Usando valor por defecto:', usdToBrlRate);
+      console.warn('⚠️ No se encontro tasa USD->BRL en la respuesta. Usando valor por defecto:', usdToBrlRate);
     }
     
     // Asegurarse de que es un numero valido
     if (isNaN(usdToBrlRate) || usdToBrlRate <= 0) {
       usdToBrlRate = 5.3; // Valor por defecto si no es valido
-      console.warn('?? Tasa USD->BRL invalida. Usando valor por defecto:', usdToBrlRate);
+      console.warn('⚠️ Tasa USD->BRL invalida. Usando valor por defecto:', usdToBrlRate);
     }
     
     // Formatear el valor para mostrar
     const vetTaxFormatted = usdToBrlRate.toFixed(4);
-    console.log('?? Tasa de conversion USD->BRL:', vetTaxFormatted);
+    console.log('💱 Tasa de conversion USD->BRL:', vetTaxFormatted);
     
     // Calcular el monto en BRL
     const parsedUSD = parseFloat(amountUSD);
     let amountBRL;
     if (!isNaN(parsedUSD)) {
       amountBRL = (parsedUSD * usdToBrlRate).toFixed(2);
-      console.log('?? Monto en BRL calculado:', amountBRL);
+      console.log('💰 Monto en BRL calculado:', amountBRL);
     } else {
-      console.error('? Error al calcular monto BRL: valor USD invalido');
+      console.error('❌ Error al calcular monto BRL: valor USD invalido');
       amountBRL = "0.00";
     }
     
@@ -142,7 +146,7 @@ router.post('/', async (req, res) => {
       const apiProvidedAmount = pixResponse.amount || pixResponse.amountBRL;
       if (!isNaN(parseFloat(apiProvidedAmount))) {
         amountBRL = parseFloat(apiProvidedAmount).toFixed(2);
-        console.log('?? Usando monto BRL proporcionado por la API:', amountBRL);
+        console.log('📊 Usando monto BRL proporcionado por la API:', amountBRL);
       }
     }
     
@@ -159,7 +163,8 @@ router.post('/', async (req, res) => {
       date: new Date().toISOString(),
       status: 'PENDIENTE',
       originalCurrency,
-      webhookUrl // Guardar la URL del webhook para referencia
+      webhookUrl, // Guardar la URL del webhook para referencia
+      userEmail   // Guardar el email del usuario que generó la cotización
     };
     
     // Guardar en la base de datos de transacciones pendientes
@@ -170,7 +175,7 @@ router.post('/', async (req, res) => {
       try {
         pendingTransactions = JSON.parse(fs.readFileSync(pendingFile, 'utf8'));
       } catch (error) {
-        console.error('? Error al leer el archivo de transacciones pendientes:', error);
+        console.error('❌ Error al leer el archivo de transacciones pendientes:', error);
       }
     }
     
@@ -195,11 +200,11 @@ router.post('/', async (req, res) => {
       expiresAt: pixResponse.expiresAt || new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minutos de validez por defecto
     };
     
-    console.log('? Solicitud de pago procesada exitosamente');
+    console.log('✅ Solicitud de pago procesada exitosamente');
     res.json(response);
     
   } catch (error) {
-    console.error('? Error al procesar la solicitud de pago:', error);
+    console.error('❌ Error al procesar la solicitud de pago:', error);
     res.status(500).json({
       success: false,
       error: `Error del servidor: ${error.message}`
