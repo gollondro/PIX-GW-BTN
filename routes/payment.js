@@ -277,6 +277,9 @@ router.post('/payment-link', async (req, res) => {
 
   const webhookUrl = process.env.RENPIX_WEBHOOK;
 
+  // Generar ID único para la transacción
+  const transactionId = uuidv4();
+
   // Construye el payload para Agillitas
   const payload = {
     merchantId: 3111,
@@ -325,7 +328,8 @@ router.post('/payment-link', async (req, res) => {
         } catch (e) { linkTxs = []; }
       }
       linkTxs.push({
-        id: data.data.id,
+        id: data.data.id, // ID de Agillitas
+        transactionId,    // Tu propio ID local
         name,
         email,
         phone,
@@ -337,7 +341,7 @@ router.post('/payment-link', async (req, res) => {
       });
       fs.writeFileSync(linkTxFile, JSON.stringify(linkTxs, null, 2));
 
-      return res.json({ success: true, id: data.data.id });
+      return res.json({ success: true, id: data.data.id, transactionId });
     } else {
       return res.status(400).json({ success: false, error: data.message || 'No se pudo generar el link de pago' });
     }
