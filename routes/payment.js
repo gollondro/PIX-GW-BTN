@@ -358,4 +358,43 @@ router.get('/links', (req, res) => {
   res.json(linkTxs);
 });
 
+router.get('/status/:id', (req, res) => {
+  const { id } = req.params;
+  const paidFile = path.join(__dirname, '../db/paid.json');
+  let paid = [];
+  if (fs.existsSync(paidFile)) {
+    try {
+      paid = JSON.parse(fs.readFileSync(paidFile, 'utf8'));
+    } catch (e) { paid = []; }
+  }
+  const match = paid.find(p => p.id === id);
+  if (match) {
+    res.json({ paid: true, data: match });
+  } else {
+    res.json({ paid: false });
+  }
+});
+
 module.exports = router;
+
+// Supón que tienes el transactionId en una variable
+let pollingInterval;
+function startPollingPago(transactionId) {
+  pollingInterval = setInterval(() => {
+    fetch(`/api/payment/status/${transactionId}`)
+      .then(res => res.json())
+      .then(result => {
+        if (result.paid) {
+          clearInterval(pollingInterval);
+          // Oculta el QR
+          document.getElementById('qrResult').innerHTML = `
+            <div class="alert alert-success">
+              Pago recibido.<br>
+              Monto: <b>${result.data.amount}</b> ${result.data.currency}<br>
+              Fecha: <b>${result.data.paid_at || ''}</b>
+            </div>
+          `;
+        }
+      });
+  }, 3000); // cada 3 segundos
+}
