@@ -5,7 +5,9 @@ const router = express.Router();
 
 router.post('/', (req, res) => {
   try {
-    console.log('Recibida solicitud de login:', req.body);
+       // Put the debug logs here where req is defined
+    console.log('Procesando login request para:', req.body?.email);
+    console.log('Recibida solicitud de login:', req.body); console.log('Recibida solicitud de login:', req.body);
     const { email, password } = req.body;
     
     // Validar datos de entrada

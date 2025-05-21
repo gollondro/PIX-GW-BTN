@@ -573,64 +573,120 @@ document.addEventListener('DOMContentLoaded', function() {
       formTitle.innerText = translations[currentLang || 'es'].loginBtn;
     }
   });
+  
+  
+  const btnGenerateQR = document.getElementById('btnGenerateQR');
+  const btnGenerateLink = document.getElementById('btnGenerateLink');
 
-  const paymentLinkBtn = document.getElementById('generatePaymentLink');
-  if (paymentLinkBtn) {
-    paymentLinkBtn.addEventListener('click', function() {
-      const amountCLP = parseFloat(document.getElementById('amount').value);
-      const name = document.getElementById('name').value;
-      const email = document.getElementById('emailCliente').value;
-      const phone = document.getElementById('phone').value;
-      const cpf = document.getElementById('cpf').value;
-      let currency = document.querySelector('input[name="currency"]:checked')?.value || 'CLP';
-      let amount = amountCLP;
+  const handlePixSubmission = async (endpoint) => {
+    const qrResult = document.getElementById('qrResult');
+    const amount = document.getElementById('amount').value;
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('emailCliente').value;
+    const phone = document.getElementById('phone').value;
+    const cpf = document.getElementById('cpf').value;
+    const currency = document.querySelector('input[name="currency"]:checked')?.value || currentCurrency;
 
-      // Si la moneda es CLP, convertir a USD y enviar USD
-      if (currency === 'CLP') {
-        // Usa la tasa de cambio que tengas disponible (ejemplo: 945)
-        const rateCLPperUSD = 945; // Puedes obtenerla dinámicamente si lo prefieres
-        amount = (amountCLP / rateCLPperUSD).toFixed(2);
-        currency = 'USD';
-      }
+    if (!amount || !name || !email || !phone || !cpf) {
+      alert('Por favor complete todos los campos');
+      return;
+    }
 
-      const qrResult = document.getElementById('qrResult');
-      qrResult.innerHTML = `
-        <div class="d-flex justify-content-center align-items-center" style="height: 80px;">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Generando link de pago...</span>
-          </div>
-        </div>
-      `;
+    if (!debugModeEnabled && !validarCPF(cpf)) {
+      alert('El CPF ingresado no es válido');
+      return;
+    }
 
-      fetch('/api/payment/payment-link', {
+    qrResult.innerHTML = '<div class="spinner-border text-afex" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Generando código...</p>';
+
+    const formData = {
+      amount,
+      name,
+      email,
+      phone,
+      cpf,
+      currency,
+      userEmail: session.email
+    };
+
+    if (currency === 'CLP') formData.amountCLP = amount;
+    if (currency === 'USD') formData.amountUSD = amount;
+
+    if (endpoint === '/api/payment-link') {
+      formData.description = `Link de pago para ${name}`;
+    }
+
+    try {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, name, email, phone, cpf, currency })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.id && data.success) {
-          qrResult.innerHTML = `
-            <div class="alert alert-success">
-              Solicitud realizada con éxito.<br>
-              ID de la solicitud: <strong>${data.id}</strong><br>
-              El cliente recibirá un correo con las instrucciones de pago en <strong>${email}</strong>.
-            </div>
-          `;
-        } else {
-          qrResult.innerHTML = `
-            <div class="alert alert-danger">Error al generar la solicitud de link de pago</div>
-          `;
-        }
-      })
-      .catch(() => {
-        qrResult.innerHTML = `
-          <div class="alert alert-danger">Error al generar la solicitud de link de pago</div>
-        `;
+        body: JSON.stringify(formData)
       });
-    });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+
+      const data = await response.json();
+      renderQRContent({ ...data, qrData: data });
+      startCountdown(data.expiresAt);
+    } catch (error) {
+      qrResult.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
+  };
+
+  if (btnGenerateQR) {
+    btnGenerateQR.addEventListener('click', () => handlePixSubmission('/api/payment'));
   }
-  
+
+  if (btnGenerateLink) {
+    btnGenerateLink.addEventListener('click', async () => {
+  const amount = document.getElementById('amount').value;
+  const name = document.getElementById('name').value;
+  const email = document.getElementById('emailCliente').value;
+  const phone = document.getElementById('phone').value;
+  const cpf = document.getElementById('cpf').value;
+
+  const payload = {
+    amount,
+    name,
+    email,
+    phone,
+    cpf,
+    description: `Link de pago para ${name}`,
+    currency: currentCurrency,
+    userEmail: session.email
+  };
+
+  const qrResult = document.getElementById('qrResult');
+  qrResult.innerHTML = `<div class="spinner-border text-afex" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Generando link...</p>`;
+
+  try {
+    const res = await fetch('/api/payment-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (data.success && data.id) {
+      const linkUrl = `https://pagamento.rendix.com.br/link/${data.id}`;
+      qrResult.innerHTML = `
+        <p><strong>ID de la venta:</strong> ${data.id}</p>
+        <p><strong>Link de pago:</strong> <a href="${linkUrl}" target="_blank">${linkUrl}</a></p>
+      `;
+    } else {
+      qrResult.innerHTML = `<div class="alert alert-warning">No se pudo generar el link de pago.</div>`;
+    }
+  } catch (error) {
+    qrResult.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+  }
+});
+
+  }
+
   console.log('✅ Inicialización completada');
   debugLog('✅ Inicialización completada');
 });

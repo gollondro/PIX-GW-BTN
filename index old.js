@@ -14,7 +14,7 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/api/login", require("./routes/login"));
-app.use("/api/payment", require("./routes/payment")); // Aquí van todos los endpoints de payment.js, incluyendo /payment-link
+app.use("/api/payment", require("./routes/payment"));
 app.use("/api/webhook", require("./routes/webhook"));
 app.use("/api/pending", require("./routes/pending"));
 app.use("/api/paid", require("./routes/paid"));

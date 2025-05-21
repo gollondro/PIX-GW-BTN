@@ -365,6 +365,59 @@ async function cargarUsuariosParaFiltro() {
   }
 }
 
+async function cargarTransaccionesLinkPago() {
+  const tableBody = document.querySelector('#paymentLinksTable tbody');
+  tableBody.innerHTML = '<tr><td colspan="7">Cargando...</td></tr>';
+
+  try {
+    const res = await fetch('/api/payment/links');
+    const data = await res.json();
+
+    if (Array.isArray(data) && data.length > 0) {
+      tableBody.innerHTML = '';
+      data.forEach(tx => {
+        tableBody.innerHTML += `
+          <tr>
+            <td>${tx.id}</td>
+            <td>${tx.name}</td>
+            <td>${tx.email}</td>
+            <td>${tx.amount}</td>
+            <td>${tx.currency}</td>
+            <td>${tx.date ? tx.date.substring(0, 19).replace('T', ' ') : ''}</td>
+            <td>${tx.status || ''}</td>
+          </tr>
+        `;
+      });
+    } else {
+      tableBody.innerHTML = '<tr><td colspan="7">No hay transacciones de link de pago.</td></tr>';
+    }
+  } catch (e) {
+    tableBody.innerHTML = '<tr><td colspan="7">Error al cargar transacciones.</td></tr>';
+  }
+}
+
+// Llama a la función al cargar la página
+document.addEventListener('DOMContentLoaded', cargarTransaccionesLinkPago);
+
+document.getElementById('menuUsuarios').onclick = function() {
+  document.getElementById('seccionUsuarios').style.display = '';
+  document.getElementById('seccionTransacciones').style.display = 'none';
+  document.getElementById('seccionLinks').style.display = 'none';
+};
+
+document.getElementById('menuTransacciones').onclick = function() {
+  document.getElementById('seccionUsuarios').style.display = 'none';
+  document.getElementById('seccionTransacciones').style.display = '';
+  document.getElementById('seccionLinks').style.display = 'none';
+};
+
+document.getElementById('menuLinks').onclick = function() {
+  document.getElementById('seccionUsuarios').style.display = 'none';
+  document.getElementById('seccionTransacciones').style.display = 'none';
+  document.getElementById('seccionLinks').style.display = '';
+  cargarTransaccionesLinkPago(); // Llama a la función para cargar los links
+};
+
 // Inicialización
 window.addEventListener('DOMContentLoaded', () => {
   debugLog('Inicializando panel de administración');

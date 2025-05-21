@@ -4,6 +4,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const rendixApi = require('../services/rendixApi'); // Importar el servicio de API
+const fetch = require('node-fetch'); // npm install node-fetch
 
 // Ruta para procesar pagos PIX
 router.post('/', async (req, res) => {
@@ -15,7 +16,6 @@ router.post('/', async (req, res) => {
     let { amountCLP, amountUSD, currency, amount } = req.body;
     
     // Capturar información del usuario que genera la cotización
-    // El email del usuario logeado debería venir en el cuerpo de la solicitud
     const userEmail = req.body.userEmail;
     
     if (!name || !email || !phone || !cpf) {
@@ -97,6 +97,14 @@ router.post('/', async (req, res) => {
     
     console.log('📥 Respuesta API RENPIX:', pixResponse);
     
+    // Loguear todas las propiedades de la respuesta para debugging
+    if (pixResponse) {
+      console.log('📊 Lista de todas las propiedades en la respuesta:');
+      Object.keys(pixResponse).forEach(key => {
+        console.log(`  - ${key}: ${JSON.stringify(pixResponse[key])}`);
+      });
+    }
+    
     // Obtener el tipo de cambio USD -> BRL (tasa Brasil)
     // La API devuelve diferentes formatos segun la implementacion
     let usdToBrlRate;
@@ -104,8 +112,10 @@ router.post('/', async (req, res) => {
     // Intentar obtener la tasa desde diferentes propiedades posibles
     if (pixResponse.exchangeRate) {
       usdToBrlRate = pixResponse.exchangeRate;
+      console.log('💲 Tasa encontrada en exchangeRate:', usdToBrlRate);
     } else if (pixResponse.rate) {
       usdToBrlRate = pixResponse.rate;
+      console.log('💲 Tasa encontrada en rate:', usdToBrlRate);
     } else if (pixResponse.vetTax) {
       // Asegurarse de que es un numero
       if (typeof pixResponse.vetTax === 'number') {
@@ -114,21 +124,22 @@ router.post('/', async (req, res) => {
         // Intentar convertir a numero quitando % si existe
         usdToBrlRate = parseFloat(pixResponse.vetTax.replace('%', ''));
       }
+      console.log('💲 Tasa encontrada en vetTax:', usdToBrlRate);
     } else {
       // Si no encontramos la tasa, usar un valor por defecto
       usdToBrlRate = 5.3; // Un valor razonable de USD a BRL
-      console.warn('⚠️ No se encontro tasa USD->BRL en la respuesta. Usando valor por defecto:', usdToBrlRate);
+      console.warn('⚠️ No se encontró tasa USD->BRL en la respuesta. Usando valor por defecto:', usdToBrlRate);
     }
     
     // Asegurarse de que es un numero valido
     if (isNaN(usdToBrlRate) || usdToBrlRate <= 0) {
       usdToBrlRate = 5.3; // Valor por defecto si no es valido
-      console.warn('⚠️ Tasa USD->BRL invalida. Usando valor por defecto:', usdToBrlRate);
+      console.warn('⚠️ Tasa USD->BRL inválida. Usando valor por defecto:', usdToBrlRate);
     }
     
     // Formatear el valor para mostrar
     const vetTaxFormatted = usdToBrlRate.toFixed(4);
-    console.log('💱 Tasa de conversion USD->BRL:', vetTaxFormatted);
+    console.log('💱 Tasa de conversión USD->BRL:', vetTaxFormatted);
     
     // Calcular el monto en BRL
     const parsedUSD = parseFloat(amountUSD);
@@ -137,7 +148,7 @@ router.post('/', async (req, res) => {
       amountBRL = (parsedUSD * usdToBrlRate).toFixed(2);
       console.log('💰 Monto en BRL calculado:', amountBRL);
     } else {
-      console.error('❌ Error al calcular monto BRL: valor USD invalido');
+      console.error('❌ Error al calcular monto BRL: valor USD inválido');
       amountBRL = "0.00";
     }
     
@@ -148,6 +159,25 @@ router.post('/', async (req, res) => {
         amountBRL = parseFloat(apiProvidedAmount).toFixed(2);
         console.log('📊 Usando monto BRL proporcionado por la API:', amountBRL);
       }
+    }
+    
+    // Verificar la disponibilidad de datos del QR
+    const qrCodeBase64 = pixResponse.qrCodeBase64 || pixResponse.qrCode || pixResponse.qrImage || pixResponse.qr || '';
+    const pixCopyPast = pixResponse.pixCopyPast || pixResponse.pixUrl || pixResponse.url || pixResponse.link || pixResponse.paymentLink || pixResponse.externalLink || '';
+    
+    // Loggear los datos de QR para debugging
+    if (qrCodeBase64) {
+      console.log('✅ QR Code Base64 encontrado en:', Object.keys(pixResponse).find(key => pixResponse[key] === qrCodeBase64));
+      console.log('📏 Longitud del QR Code Base64:', qrCodeBase64.length);
+    } else {
+      console.error('⚠️ No se encontró QR Code Base64 en la respuesta de la API');
+    }
+    
+    if (pixCopyPast) {
+      console.log('✅ Link de pago encontrado en:', Object.keys(pixResponse).find(key => pixResponse[key] === pixCopyPast));
+      console.log('📏 Longitud del link de pago:', pixCopyPast.length);
+    } else {
+      console.error('⚠️ No se encontró link de pago en la respuesta de la API');
     }
     
     // Preparar registro para almacenar
@@ -194,11 +224,24 @@ router.post('/', async (req, res) => {
       vetTax: vetTaxFormatted, // Usar el formato correcto sin %
       webhookUrl: pixResponse.webhookUrl || webhookUrl, // Incluir la URL del webhook en la respuesta
       qrData: {
-        pixCopyPast: pixResponse.pixCopyPast || pixResponse.url || `https://example.com/pix/${transactionId}`,
-        qrCodeBase64: pixResponse.qrCodeBase64 || pixResponse.qrCode
+        pixCopyPast: pixCopyPast || `https://example.com/pix/${transactionId}`,
+        qrCodeBase64: qrCodeBase64 || '' // Si no hay QR, enviar cadena vacía
       },
       expiresAt: pixResponse.expiresAt || new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minutos de validez por defecto
     };
+    
+    // Si no hay QR o enlace de pago, añadir mensajes de advertencia
+    if (!qrCodeBase64 || !pixCopyPast) {
+      response.warnings = [];
+      
+      if (!qrCodeBase64) {
+        response.warnings.push('No se pudo obtener el código QR desde la API');
+      }
+      
+      if (!pixCopyPast) {
+        response.warnings.push('No se pudo obtener el enlace de pago desde la API');
+      }
+    }
     
     console.log('✅ Solicitud de pago procesada exitosamente');
     res.json(response);
@@ -210,6 +253,109 @@ router.post('/', async (req, res) => {
       error: `Error del servidor: ${error.message}`
     });
   }
+});
+
+async function getAgillitasToken() {
+  const loginPayload = {
+    email: 'afexlojista@teste.com',
+    password: 'Welcome@123456*'
+  };
+
+  const response = await fetch('https://apisandbox.agillitas.com.br/efx/v2/external/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(loginPayload)
+  });
+  const data = await response.json();
+  console.log('🔐 Respuesta login Agillitas:', data);
+  // El token está en data.data.token
+  return data.data && data.data.token;
+}
+
+router.post('/payment-link', async (req, res) => {
+  const { amount, name, email, phone, cpf, currency } = req.body;
+
+  const webhookUrl = process.env.RENPIX_WEBHOOK;
+
+  // Construye el payload para Agillitas
+  const payload = {
+    merchantId: 3111,
+    purchase: Number(amount),
+    description: `Link de pago para ${name}`,
+    controlNumber: `UUID-UNICO-${Date.now()}`,
+    email,
+    UrlWebhook: webhookUrl,
+    currencyCode: currency,
+    operationCode: 1,
+    beneficiary: name
+  };
+
+  try {
+    console.log('🔑 Solicitando token Agillitas...');
+    const token = await getAgillitasToken();
+    console.log('🔑 Token obtenido:', token);
+
+    if (!token) {
+      console.error('❌ No se obtuvo token de Agillitas');
+      return res.status(500).json({ success: false, error: 'No se obtuvo token de Agillitas' });
+    }
+
+    console.log('➡️ Enviando solicitud a Agillitas con payload:', payload);
+
+    const response = await fetch('https://apisandbox.agillitas.com.br/efx/v1/external/link', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    console.log('⬅️ Esperando respuesta de Agillitas...');
+    const data = await response.json();
+    console.log('🌐 Respuesta de Agillitas:', data);
+
+    if (data.success && data.data && data.data.id) {
+      // Guardar la transacción en archivo
+      const linkTxFile = path.join(__dirname, '../db/payment_links.json');
+      let linkTxs = [];
+      if (fs.existsSync(linkTxFile)) {
+        try {
+          linkTxs = JSON.parse(fs.readFileSync(linkTxFile, 'utf8'));
+        } catch (e) { linkTxs = []; }
+      }
+      linkTxs.push({
+        id: data.data.id,
+        name,
+        email,
+        phone,
+        cpf,
+        amount,
+        currency,
+        date: new Date().toISOString(),
+        status: 'PENDIENTE'
+      });
+      fs.writeFileSync(linkTxFile, JSON.stringify(linkTxs, null, 2));
+
+      return res.json({ success: true, id: data.data.id });
+    } else {
+      return res.status(400).json({ success: false, error: data.message || 'No se pudo generar el link de pago' });
+    }
+  } catch (error) {
+    console.error('❌ Error en /payment-link:', error);
+    return res.status(500).json({ success: false, error: 'Error al conectar con Agillitas' });
+  }
+});
+
+router.get('/links', (req, res) => {
+  const linkTxFile = path.join(__dirname, '../db/payment_links.json');
+  let linkTxs = [];
+  if (fs.existsSync(linkTxFile)) {
+    try {
+      linkTxs = JSON.parse(fs.readFileSync(linkTxFile, 'utf8'));
+    } catch (e) { linkTxs = []; }
+  }
+  res.json(linkTxs);
 });
 
 module.exports = router;

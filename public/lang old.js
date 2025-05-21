@@ -15,13 +15,9 @@ var translations = {
     phone: "Teléfono",
     cpf: "CPF",
     generateBtn: "Generar QR",
-    generateLinkBtn: "Generar Enlace",
     logout: "Cerrar sesión",
     currency: "Moneda",
-    paymentMethod: "Método de pago",
-    description: "Descripción",
     qrTitle: "Detalles del pago con PIX",
-    linkTitle: "Enlace de pago PIX",
     amountLabel: "Monto:",
     exchangeRate: "Tasa de cambio:",
     brazilianTax: "Tasa USD → BRL (vet):",
@@ -32,9 +28,7 @@ var translations = {
     paymentReceived: "✅ Pago recibido",
     amountPaid: "Monto pagado:",
     client: "Cliente:",
-    date: "Fecha:",
-    linkInstructions: "El cliente recibirá un enlace por correo electrónico para realizar el pago.",
-    linkSuccess: "✅ Enlace de pago generado correctamente"
+    date: "Fecha:"
   },
   en: {
     email: "Email",
@@ -48,13 +42,9 @@ var translations = {
     phone: "Phone",
     cpf: "CPF",
     generateBtn: "Generate QR",
-    generateLinkBtn: "Generate Link",
     logout: "Logout",
     currency: "Currency",
-    paymentMethod: "Payment Method",
-    description: "Description",
     qrTitle: "PIX Payment Details",
-    linkTitle: "PIX Payment Link",
     amountLabel: "Amount:",
     exchangeRate: "Exchange rate:",
     brazilianTax: "USD → BRL rate (vet):",
@@ -65,9 +55,7 @@ var translations = {
     paymentReceived: "✅ Payment received",
     amountPaid: "Amount paid:",
     client: "Client:",
-    date: "Date:",
-    linkInstructions: "The client will receive a payment link via email.",
-    linkSuccess: "✅ Payment link generated successfully"
+    date: "Date:"
   },
   pt: {
     email: "Email",
@@ -81,13 +69,9 @@ var translations = {
     phone: "Telefone",
     cpf: "CPF",
     generateBtn: "Gerar QR",
-    generateLinkBtn: "Gerar Link",
     logout: "Sair",
     currency: "Moeda",
-    paymentMethod: "Método de pagamento",
-    description: "Descrição",
     qrTitle: "Detalhes do pagamento PIX",
-    linkTitle: "Link de pagamento PIX",
     amountLabel: "Valor:",
     exchangeRate: "Taxa de câmbio:",
     brazilianTax: "Taxa USD → BRL (vet):",
@@ -98,9 +82,7 @@ var translations = {
     paymentReceived: "✅ Pagamento recebido",
     amountPaid: "Valor pago:",
     client: "Cliente:",
-    date: "Data:",
-    linkInstructions: "O cliente receberá um link de pagamento por e-mail.",
-    linkSuccess: "✅ Link de pagamento gerado com sucesso"
+    date: "Data:"
   }
 };
 
@@ -126,9 +108,6 @@ function setLang(lang) {
     }
   });
   
-  // Actualizar el texto del botón generar según el método de pago seleccionado
-  updateGenerateButtonText();
-  
   // Verificar si hay un QR para actualizar su contenido
   const qrResult = document.getElementById('qrResult');
   if (qrResult && qrResult.dataset.qrData) {
@@ -137,30 +116,6 @@ function setLang(lang) {
     } catch (e) {
       console.error('Error al renderizar QR con nuevo idioma:', e);
     }
-  }
-  
-  // Verificar si hay resultado de enlace para actualizar su contenido
-  if (qrResult && qrResult.dataset.linkData) {
-    try {
-      renderLinkContent(JSON.parse(qrResult.dataset.linkData));
-    } catch (e) {
-      console.error('Error al renderizar enlace con nuevo idioma:', e);
-    }
-  }
-}
-
-// Función para actualizar el texto del botón de generar según el método seleccionado
-function updateGenerateButtonText() {
-  const generateButton = document.getElementById('generateButton');
-  if (!generateButton) return;
-  
-  const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'qr';
-  const t = translations[currentLang || 'es'];
-  
-  if (paymentMethod === 'link') {
-    generateButton.textContent = t.generateLinkBtn;
-  } else {
-    generateButton.textContent = t.generateBtn;
   }
 }
 
@@ -176,8 +131,6 @@ function renderQRContent(data) {
   
   // Guardar datos para futura traducción
   qrResult.dataset.qrData = JSON.stringify(data);
-  // Limpiar dataset de enlace si existiera
-  delete qrResult.dataset.linkData;
   
   // Construir HTML basado en el idioma actual
   let html = `<h5 class="mt-3 mb-3">${t.qrTitle}</h5>`;
@@ -241,56 +194,4 @@ function renderQRContent(data) {
       };
     }
   }, 100);
-}
-
-// Función para renderizar el contenido de enlace de pago
-function renderLinkContent(data) {
-  const qrResult = document.getElementById('qrResult');
-  if (!qrResult) {
-    console.error('❌ Elemento qrResult no encontrado');
-    return;
-  }
-  
-  const t = translations[currentLang || 'es'];
-  
-  // Guardar datos para futura traducción
-  qrResult.dataset.linkData = JSON.stringify(data);
-  // Limpiar dataset de QR si existiera
-  delete qrResult.dataset.qrData;
-  
-  // Construir HTML basado en el idioma actual
-  let html = `<div class="alert alert-success">
-                <h5 class="mt-2 mb-2">${t.linkSuccess}</h5>
-                <p class="mb-0">${t.linkInstructions}</p>
-              </div>`;
-  
-  // Información de pago
-  html += `<div class="card mt-3">
-             <div class="card-body">
-               <h5 class="card-title">${t.linkTitle}</h5>
-               <p><strong>${t.client}</strong> ${data.name}</p>
-               <p><strong>${t.clientEmail}</strong> ${data.email}</p>`;
-  
-  if (data.description) {
-    html += `<p><strong>${t.description}</strong> ${data.description}</p>`;
-  }
-  
-  if (data.currency === 'USD') {
-    html += `<p><strong>${t.amountLabel}</strong> $${data.amountUSD} USD</p>`;
-  } else {
-    html += `<p><strong>${t.amountLabel}</strong> $${data.amountCLP} CLP</p>`;
-    html += `<p><strong>${t.amountLabel} USD:</strong> $${data.amountUSD} USD</p>`;
-  }
-  
-  // Comprobar que amountBRL existe y es un valor válido
-  if (data.amountBRL) {
-    html += `<p><strong>${t.clientWillPay}</strong> R$ ${data.amountBRL}</p>`;
-  }
-  
-  html += `   <p><strong>${t.date}</strong> ${new Date().toLocaleString()}</p>
-               <p class="mb-0"><strong>ID:</strong> ${data.transactionId || data.id}</p>
-             </div>
-           </div>`;
-  
-  qrResult.innerHTML = html;
 }

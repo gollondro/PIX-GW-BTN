@@ -1,0 +1,24 @@
+[
+  {
+    "id": 81374,
+    "name": "marcelo Caracci",
+    "email": "mcaracci@gmail.com",
+    "phone": "+5511123456789",
+    "cpf": "00680011854",
+    "amount": "1.00",
+    "currency": "USD",
+    "date": "2025-05-21T21:35:50.087Z",
+    "status": "PENDIENTE"
+  },
+  {
+    "id": 81375,
+    "name": "marcelo Caracci",
+    "email": "mcaracci@gmail.com",
+    "phone": "+5511123456789",
+    "cpf": "00680011854",
+    "amount": 945,
+    "currency": "USD",
+    "date": "2025-05-21T21:36:41.595Z",
+    "status": "PENDIENTE"
+  }
+]
