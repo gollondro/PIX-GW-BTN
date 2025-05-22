@@ -1,6 +1,7 @@
 // Variable global para el estado de depuración
 let debugModeEnabled = false;
 let sortDirection = 'desc'; // Por defecto, ordenar por fecha descendente (más nuevo primero)
+let sortLinksDirection = 'desc'; // Por defecto descendente
 let usuarios = [];
 
 // Función para activar/desactivar modo depuración
@@ -370,8 +371,12 @@ async function cargarTransaccionesLinkPago() {
     const res = await fetch('/api/payment/links');
     const data = await res.json();
     if (Array.isArray(data) && data.length > 0) {
-      // Ordenar por fecha descendente (más reciente primero)
-      data.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // Ordenar por fecha según dirección
+      data.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortLinksDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      });
 
       tableBody.innerHTML = '';
       data.forEach(tx => {
@@ -390,7 +395,7 @@ async function cargarTransaccionesLinkPago() {
             <td>${montoUSD}</td>
             <td>${montoBRL}</td>
             <td>${tx.status || ''}</td>
-            <td>${tx.userEmail || ''}</td>
+            <td>${tx.userEmail || '-'}</td>
           </tr>
         `;
       });
@@ -450,6 +455,14 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  const linkSortableHeader = document.querySelector('#paymentLinksTable th.sortable[data-sort="fecha"]');
+  if (linkSortableHeader) {
+    linkSortableHeader.addEventListener('click', () => {
+      sortLinksDirection = sortLinksDirection === 'desc' ? 'asc' : 'desc';
+      cargarTransaccionesLinkPago();
+    });
+  }
 
   // Estado debug
   const savedDebugMode = localStorage.getItem('debugMode');
