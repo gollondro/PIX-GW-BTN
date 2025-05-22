@@ -2,6 +2,7 @@
 let session = null;
 let currentCurrency = 'CLP';
 let debugModeEnabled = false;
+let linkTxs = [];
 
 // Función de validación de CPF brasileño
 function validarCPF(cpf) {
