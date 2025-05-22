@@ -634,3 +634,38 @@ document.addEventListener('DOMContentLoaded', function() {
   console.log('✅ Inicialización completada');
   debugLog('✅ Inicialización completada');
 });
+
+// Supón que tienes una función que se llama cuando el usuario genera una cotización:
+function manejarRespuestaCotizacion(respuesta, tipoDePago) {
+  const transactionId = respuesta.transactionId;
+
+  if (tipoDePago === 'QR') {
+    // Mostrar el QR y empezar el polling
+    mostrarQR(respuesta.qrData.qrCodeBase64);
+    startPollingPago(transactionId);
+  } else if (tipoDePago === 'LINK') {
+    // Mostrar mensaje de link de pago enviado
+    mostrarMensaje('El cliente recibirá el link de pago por email.');
+    // No hacer polling
+  }
+}
+
+function startPollingPago(transactionId) {
+  let pollingInterval = setInterval(() => {
+    fetch(`/api/payment/status/${transactionId}`)
+      .then(res => res.json())
+      .then(result => {
+        if (result.paid) {
+          clearInterval(pollingInterval);
+          // Oculta el QR y muestra notificación de pago recibido
+          document.getElementById('qrResult').innerHTML = `
+            <div class="alert alert-success">
+              ✅ ¡Pago recibido!<br>
+              Monto: <b>${result.data.amount}</b> ${result.data.currency}<br>
+              Fecha: <b>${result.data.paid_at || ''}</b>
+            </div>
+          `;
+        }
+      });
+  }, 3000); // cada 3 segundos
+}
