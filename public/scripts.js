@@ -731,7 +731,6 @@ function startPollingPago(transactionId) {
   }, 3000);
 }
 
-const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutos
 
 function mostrarModalIdInterno(transactionData) {
   // Crear el modal dinámicamente si no existe
