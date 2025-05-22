@@ -525,6 +525,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Iniciar contador de tiempo
         startCountdown(data.expiresAt);
+
+        // INICIAR POLLING PARA DETECTAR EL PAGO
+        if (data.transactionId) {
+          startPollingPago(data.transactionId);
+        }
       } else {
         throw new Error(data.error || 'Error al generar el código QR');
       }
