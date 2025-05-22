@@ -657,12 +657,16 @@ function startPollingPago(transactionId) {
       .then(result => {
         if (result.paid) {
           clearInterval(pollingInterval);
-          // Oculta el QR y muestra notificación de pago recibido
+          // Reemplaza TODO el contenido de qrResult por la confirmación
           document.getElementById('qrResult').innerHTML = `
-            <div class="alert alert-success">
-              ✅ ¡Pago recibido!<br>
-              Monto: <b>${result.data.amount}</b> ${result.data.currency}<br>
-              Fecha: <b>${result.data.paid_at || ''}</b>
+            <div class="alert alert-success text-center">
+              <h4>✅ ¡Pago recibido!</h4>
+              <p>El pago fue confirmado correctamente.</p>
+              <hr>
+              <b>Monto:</b> ${result.data.amount} ${result.data.currency}<br>
+              <b>Fecha:</b> ${result.data.paid_at || ''}<br>
+              <b>Cliente:</b> ${result.data.name || ''}<br>
+              <b>Email:</b> ${result.data.email || ''}<br>
             </div>
           `;
         }
