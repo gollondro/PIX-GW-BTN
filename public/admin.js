@@ -68,7 +68,7 @@ async function cargarUsuarios() {
           <td>${u.name || ''}</td>
           <td>${u.merchant_id}</td>
           <td>${renderCurrencyIcons(u)}</td>
-          <td>${u.ventaTiendaActiva ? '✅' : ''}</td>
+          <td>${(u.ventaTiendaActiva || u.requiereIdVentaTienda) ? '✅' : ''}</td>
           <td>
             <button class="btn btn-sm btn-warning" onclick="editarUsuario(${i})">✏️</button>
             <button class="btn btn-sm btn-danger" onclick="eliminarUsuario(${i})">🗑️</button>
@@ -90,6 +90,14 @@ function renderCurrencyIcons(user) {
   return icons;
 }
 
+// NUEVO: Función para mostrar iconos de métodos de pago
+function renderPaymentMethodIcons(user) {
+  let icons = '';
+  if (user.allowQR) icons += '<span class="badge bg-info me-1" title="Permite QR">QR</span>';
+  if (user.allowLink) icons += '<span class="badge bg-warning" title="Permite Link">LINK</span>';
+  return icons;
+}
+
 function editarUsuario(idx) {
   const usuario = usuarios[idx];
 
@@ -102,7 +110,7 @@ function editarUsuario(idx) {
   document.getElementById('userDefaultCurrency').value = usuario.defaultCurrency || 'CLP';
   document.getElementById('userAllowQR').checked = !!usuario.allowQR;
   document.getElementById('userAllowLink').checked = !!usuario.allowLink;
-  document.getElementById('userTiendaActiva').checked = !!usuario.ventaTiendaActiva;
+  document.getElementById('userTiendaActiva').checked = !!(usuario.ventaTiendaActiva || usuario.requiereIdVentaTienda);
 
   // Abre el modal
   const modal = new bootstrap.Modal(document.getElementById('modalUsuario'));
@@ -138,6 +146,7 @@ document.getElementById('formUsuario').addEventListener('submit', async e => {
     password: document.getElementById('userPass').value,
     merchant_id: document.getElementById('userMerchant').value,
     ventaTiendaActiva: document.getElementById('userTiendaActiva').checked,
+    requiereIdVentaTienda: document.getElementById('userTiendaActiva').checked, // NUEVO
     allowCLP: document.getElementById('userAllowCLP').checked,
     allowUSD: document.getElementById('userAllowUSD').checked,
     defaultCurrency: document.getElementById('userDefaultCurrency').value,
@@ -164,6 +173,13 @@ document.getElementById('formUsuario').addEventListener('submit', async e => {
   if (usuario.defaultCurrency === 'USD' && !usuario.allowUSD) {
     alert('No se puede establecer USD como moneda por defecto si no está habilitada');
     debugLog('Error: USD no está habilitada como moneda por defecto', 'error');
+    return;
+  }
+  
+  // NUEVO: Validar que al menos un método de pago esté habilitado
+  if (!usuario.allowQR && !usuario.allowLink) {
+    alert('El usuario debe tener al menos un método de pago habilitado');
+    debugLog('Error: El usuario debe tener al menos un método de pago habilitado', 'error');
     return;
   }
   
@@ -273,6 +289,22 @@ function renderTransacciones(data) {
   tbody.innerHTML = '';
   sortedData.forEach(t => {
     let usuarioInfo = t.userEmail || t.createdBy || t.email || '-';
+
+    // NUEVO: Formatear el ID interno con información adicional si está disponible
+    let idInternoDisplay = '-';
+    if (t.idVentaTienda) {
+      if (t.idVentaTienda === 'NO_ESPECIFICADO') {
+        idInternoDisplay = '<span class="text-muted">No especificado</span>';
+      } else {
+        let tooltip = '';
+        if (t.idVentaTienda_fecha) {
+          const fecha = new Date(t.idVentaTienda_fecha).toLocaleString();
+          tooltip = ` title="Agregado: ${fecha}"`;
+        }
+        idInternoDisplay = `<span class="badge bg-info"${tooltip}>${t.idVentaTienda}</span>`;
+      }
+    }
+
     tbody.innerHTML += `
       <tr>
         <td>${new Date(t.date || t.paid_at).toLocaleString()}</td>
@@ -282,6 +314,7 @@ function renderTransacciones(data) {
         <td>${t.amountBRL || '-'}</td>
         <td>${t.estado}</td>
         <td>${renderCurrency(t)}</td>
+        <td>${idInternoDisplay}</td> <!-- NUEVA COLUMNA -->
         <td>${usuarioInfo}</td>
       </tr>`;
   });

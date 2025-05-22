@@ -268,19 +268,16 @@ async function getAgillitasToken() {
 }
 
 router.post('/payment-link', async (req, res) => {
-  const { amount, name, email, phone, cpf, currency } = req.body;
+  const { amount, name, email, phone, cpf, currency, userEmail } = req.body; // <-- Añadir userEmail aquí
 
   const webhookUrl = process.env.RENPIX_WEBHOOK;
-
-  // Generar ID único para la transacción
   const transactionId = uuidv4();
 
-  // Construye el payload para Agillitas
   const payload = {
     merchantId: 3111,
     purchase: Number(amount),
     description: `Link de pago para ${name}`,
-    controlNumber: transactionId, // Usa el mismo ID aquí
+    controlNumber: transactionId,
     email,
     UrlWebhook: webhookUrl,
     currencyCode: currency,
@@ -314,7 +311,7 @@ router.post('/payment-link', async (req, res) => {
     console.log('🌐 Respuesta de Agillitas:', JSON.stringify(data, null, 2));
 
     if (data.success && data.data && data.data.id) {
-      // Guardar la transacción
+      // Guardar la transacción CON el userEmail
       const linkTxFile = path.join(__dirname, '../db/payment_links.json');
       let linkTxs = [];
       if (fs.existsSync(linkTxFile)) {
@@ -322,6 +319,7 @@ router.post('/payment-link', async (req, res) => {
           linkTxs = JSON.parse(fs.readFileSync(linkTxFile, 'utf8'));
         } catch (e) { linkTxs = []; }
       }
+
       linkTxs.push({
         id: data.data.id,
         transactionId,
@@ -329,11 +327,13 @@ router.post('/payment-link', async (req, res) => {
         email,
         phone,
         cpf,
-        amount, // <-- importante
+        amount,
         currency,
         date: new Date().toISOString(),
-        status: 'PENDIENTE'
+        status: 'PENDIENTE',
+        userEmail: userEmail || 'desconocido' // <-- IMPORTANTE: Guardar el userEmail
       });
+
       fs.writeFileSync(linkTxFile, JSON.stringify(linkTxs, null, 2));
 
       res.json({

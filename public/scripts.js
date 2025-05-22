@@ -3,6 +3,7 @@ let session = null;
 let currentCurrency = 'CLP';
 let debugModeEnabled = false;
 let linkTxs = [];
+let currentTransactionId = null; // Variable para guardar el ID de la transacción actual
 
 // Función de validación de CPF brasileño
 function validarCPF(cpf) {
@@ -690,29 +691,39 @@ function startPollingPago(transactionId) {
         if (result.paid) {
           clearInterval(pollingInterval);
 
-          // Reemplaza el contenido del QR
-          document.getElementById('qrResult').innerHTML = `
-            <div class="alert alert-success text-center">
-              <h4>✅ ¡Pago recibido!</h4>
-              <p>El pago fue confirmado correctamente.</p>
-              <hr>
-              <b>Fecha:</b> ${result.data.paid_at || ''}<br>
-              <b>Cliente:</b> ${result.data.name || ''}<br>
-              <b>Email:</b> ${result.data.email || ''}<br>
-            </div>
-          `;
-
-          // Mostrar el modal de pago exitoso (Bootstrap 5)
-          const modalBody = document.getElementById('pagoExitosoBody');
-          if (modalBody) {
-            modalBody.innerHTML = `
-              <p class="mb-2">El pago fue confirmado correctamente.</p>
-              <b>Fecha:</b> ${result.data.paid_at || ''}<br>
-              <b>Cliente:</b> ${result.data.name || ''}<br>
-              <b>Email:</b> ${result.data.email || ''}<br>
+          // Verificar si el usuario requiere ID interno de tienda
+          const requiereIdVentaTienda = session && (session.requiereIdVentaTienda || session.ventaTiendaActiva);
+          
+          if (requiereIdVentaTienda) {
+            // Mostrar modal para capturar ID interno
+            mostrarModalIdInterno(result.data);
+          } else {
+            // Mostrar confirmación normal sin ID interno
+            document.getElementById('qrResult').innerHTML = `
+              <div class="alert alert-success text-center">
+                <h4>✅ ¡Pago recibido!</h4>
+                <p>El pago fue confirmado correctamente.</p>
+                <hr>
+                <b>Fecha:</b> ${result.data.paid_at || ''}<br>
+                <b>Cliente:</b> ${result.data.name || ''}<br>
+                <b>Email:</b> ${result.data.email || ''}<br>
+              </div>
             `;
-            const modal = new bootstrap.Modal(document.getElementById('pagoExitosoModal'));
-            modal.show();
+          }
+
+          // Mostrar el modal de pago exitoso (Bootstrap 5) solo si no requiere ID interno
+          if (!requiereIdVentaTienda) {
+            const modalBody = document.getElementById('pagoExitosoBody');
+            if (modalBody) {
+              modalBody.innerHTML = `
+                <p class="mb-2">El pago fue confirmado correctamente.</p>
+                <b>Fecha:</b> ${result.data.paid_at || ''}<br>
+                <b>Cliente:</b> ${result.data.name || ''}<br>
+                <b>Email:</b> ${result.data.email || ''}<br>
+              `;
+              const modal = new bootstrap.Modal(document.getElementById('pagoExitosoModal'));
+              modal.show();
+            }
           }
         }
       });
@@ -720,3 +731,165 @@ function startPollingPago(transactionId) {
 }
 
 const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutos
+
+function mostrarModalIdInterno(transactionData) {
+  // Crear el modal dinámicamente si no existe
+  let modal = document.getElementById('idInternoModal');
+  if (!modal) {
+    const modalHTML = `
+      <div class="modal fade" id="idInternoModal" tabindex="-1" aria-labelledby="idInternoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+              <h5 class="modal-title" id="idInternoModalLabel">✅ Pago Confirmado</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+              <div class="alert alert-success mb-3">
+                <strong>¡Pago recibido exitosamente!</strong><br>
+                La transacción ha sido confirmada por el sistema de pagos.
+              </div>
+              <div id="detallesPago" class="mb-3"></div>
+              <hr>
+              <div class="mb-3">
+                <label for="idVentaTienda" class="form-label">
+                  <strong>📋 ID Interno de su Tienda (Opcional):</strong>
+                </label>
+                <input type="text" class="form-control" id="idVentaTienda" 
+                       placeholder="Ej: VENTA-2025-001, INV-12345, etc." maxlength="50">
+                <div class="form-text">
+                  <i class="fas fa-info-circle"></i> 
+                  Este campo es para su referencia interna y aparecerá en los reportes de administración.
+                  No afecta el procesamiento del pago.
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-success" id="guardarIdInterno">
+                💾 Guardar y Continuar
+              </button>
+              <button type="button" class="btn btn-outline-secondary" id="omitirIdInterno">
+                ⏭️ Omitir (continuar sin ID)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    modal = document.getElementById('idInternoModal');
+  }
+
+  // Actualizar los detalles del pago
+  const detallesPago = document.getElementById('detallesPago');
+  detallesPago.innerHTML = `
+    <div class="bg-light p-3 rounded border">
+      <h6 class="text-primary mb-2">📄 Detalles de la Transacción:</h6>
+      <div class="row">
+        <div class="col-6">
+          <p class="mb-1"><strong>Cliente:</strong><br>${transactionData.name || 'N/A'}</p>
+          <p class="mb-1"><strong>Email:</strong><br>${transactionData.email || 'N/A'}</p>
+        </div>
+        <div class="col-6">
+          <p class="mb-1"><strong>Monto:</strong><br>R$ ${transactionData.amountBRL || 'N/A'}</p>
+          <p class="mb-0"><strong>Fecha:</strong><br>${new Date(transactionData.paid_at || new Date()).toLocaleString()}</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Limpiar el campo de entrada
+  document.getElementById('idVentaTienda').value = '';
+
+  // Configurar el evento del botón guardar
+  const guardarBtn = document.getElementById('guardarIdInterno');
+  const omitirBtn = document.getElementById('omitirIdInterno');
+  
+  guardarBtn.onclick = async function() {
+    const idVentaTienda = document.getElementById('idVentaTienda').value.trim();
+    
+    if (!idVentaTienda) {
+      if (!confirm('¿Está seguro de continuar sin ingresar un ID interno? Puede agregarlo después desde el panel de administración.')) {
+        return;
+      }
+    }
+
+    await guardarIdInternoTransaccion(idVentaTienda || 'NO_ESPECIFICADO', modal);
+  };
+  
+  omitirBtn.onclick = function() {
+    // Cerrar el modal sin guardar
+    const modalInstance = bootstrap.Modal.getInstance(modal);
+    modalInstance.hide();
+    currentTransactionId = null;
+  };
+
+  // Permitir usar Enter para guardar
+  document.getElementById('idVentaTienda').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      guardarBtn.click();
+    }
+  });
+
+  // Mostrar el modal
+  const modalInstance = new bootstrap.Modal(modal);
+  modalInstance.show();
+}
+
+async function guardarIdInternoTransaccion(idVentaTienda, modal) {
+  try {
+    const response = await fetch('/api/venta-tienda', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transactionId: currentTransactionId,
+        idVentaTienda: idVentaTienda,
+        userEmail: session?.email
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      // Cerrar el modal
+      const modalInstance = bootstrap.Modal.getInstance(modal);
+      modalInstance.hide();
+      // Mostrar toast o mensaje de éxito
+      showSuccessToast('ID interno guardado correctamente');
+      currentTransactionId = null;
+    } else {
+      alert('Error al guardar el ID interno: ' + result.error);
+    }
+  } catch (error) {
+    alert('Error de conexión al guardar el ID interno.');
+  }
+}
+
+function showSuccessToast(message) {
+  let toastContainer = document.getElementById('toastContainer');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'toastContainer';
+    toastContainer.className = 'position-fixed top-0 end-0 p-3';
+    toastContainer.style.zIndex = '9999';
+    document.body.appendChild(toastContainer);
+  }
+  
+  const toastHTML = `
+    <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header bg-success text-white">
+        <strong class="me-auto">✅ Éxito</strong>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+      </div>
+      <div class="toast-body">${message}</div>
+    </div>
+  `;
+  
+  toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+  const toast = toastContainer.lastElementChild;
+  const bsToast = new bootstrap.Toast(toast);
+  bsToast.show();
+  toast.addEventListener('hidden.bs.toast', () => {
+    toast.remove();
+  });
+}
