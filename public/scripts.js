@@ -452,18 +452,16 @@ document.addEventListener('DOMContentLoaded', function() {
       const currency = document.querySelector('input[name="currency"]:checked')?.value || currentCurrency || 'CLP';
       
       // Preparar los datos a enviar
-      const transactionId = uuidv4();
-      const formData = {
-        currency,
-        amount,
-        name,
-        email,
-        phone,
-        cpf,
-        // Incluir email del usuario logueado que hace la cotización
-        userEmail: session.email,
-        controlNumber: transactionId // Usa tu propio ID aquí
-      };
+    //  const transactionId = uuidv4();
+  const formData = {
+  currency,
+  amount,
+  name,
+  email,
+  phone,
+  cpf,
+  userEmail: session.email
+};
       
       // En el servidor, podría esperar amountCLP o amountUSD en lugar de solo 'amount'
       if (currency === 'CLP') {
@@ -616,6 +614,8 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .then(response => response.json())
       .then(data => {
+        console.log('🔎 Respuesta del backend (link de pago):', data); // <--- AGREGA ESTA LÍNEA
+
         if (data.id && data.success) {
           qrResult.innerHTML = `
             <div class="alert alert-success">
@@ -625,21 +625,23 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           `;
 
+          // Solo agrega transactionId si existe en la respuesta
           linkTxs.push({
-            id: data.data.id, // ID de Agillitas
-            transactionId,    // Tu propio ID local
-            // ...
+            id: data.id,
+            transactionId: data.transactionId || null
           });
         } else {
           qrResult.innerHTML = `
             <div class="alert alert-danger">Error al generar la solicitud de link de pago</div>
           `;
+          console.error('❌ Error en respuesta de link de pago:', data); // <--- AGREGA ESTA LÍNEA
         }
       })
-      .catch(() => {
+      .catch((err) => {
         qrResult.innerHTML = `
           <div class="alert alert-danger">Error al generar la solicitud de link de pago</div>
         `;
+        console.error('❌ Error en fetch de link de pago:', err); // <--- AGREGA ESTA LÍNEA
       });
     });
   }

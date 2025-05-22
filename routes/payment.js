@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid'); // <-- ESTA LÍNEA DEBE ESTAR AQUÍ
 const router = express.Router();
 const rendixApi = require('../services/rendixApi'); // Importar el servicio de API
 const fetch = require('node-fetch'); // npm install node-fetch
@@ -227,7 +227,7 @@ router.post('/', async (req, res) => {
         pixCopyPast: pixCopyPast || `https://example.com/pix/${transactionId}`,
         qrCodeBase64: qrCodeBase64 || '' // Si no hay QR, enviar cadena vacía
       },
-      expiresAt: pixResponse.expiresAt || new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minutos de validez por defecto
+      expiresAt: pixResponse.expiresAt || new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 minutos de validez por defecto
     };
     
     // Si no hay QR o enlace de pago, añadir mensajes de advertencia
@@ -319,29 +319,11 @@ router.post('/payment-link', async (req, res) => {
     console.log('🌐 Respuesta de Agillitas:', data);
 
     if (data.success && data.data && data.data.id) {
-      // Guardar la transacción en archivo
-      const linkTxFile = path.join(__dirname, '../db/payment_links.json');
-      let linkTxs = [];
-      if (fs.existsSync(linkTxFile)) {
-        try {
-          linkTxs = JSON.parse(fs.readFileSync(linkTxFile, 'utf8'));
-        } catch (e) { linkTxs = []; }
-      }
-      linkTxs.push({
-        id: data.data.id, // ID de Agillitas
-        transactionId,    // Tu propio ID local
-        name,
-        email,
-        phone,
-        cpf,
-        amount,
-        currency,
-        date: new Date().toISOString(),
-        status: 'PENDIENTE'
+      res.json({
+        success: true,
+        id: data.data.id, // <-- debe ser id, no data: { id: ... }
+        transactionId // si quieres devolverlo
       });
-      fs.writeFileSync(linkTxFile, JSON.stringify(linkTxs, null, 2));
-
-      return res.json({ success: true, id: data.data.id, transactionId });
     } else {
       return res.status(400).json({ success: false, error: data.message || 'No se pudo generar el link de pago' });
     }
