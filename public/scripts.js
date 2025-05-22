@@ -660,9 +660,9 @@ function startPollingPago(transactionId) {
     fetch(`/api/payment/status/${transactionId}`)
       .then(res => res.json())
       .then(result => {
+        console.log('Polling result:', result); // <-- Agrega esto
         if (result.paid) {
           clearInterval(pollingInterval);
-          // Reemplaza TODO el contenido de qrResult por la confirmación
           document.getElementById('qrResult').innerHTML = `
             <div class="alert alert-success text-center">
               <h4>✅ ¡Pago recibido!</h4>
@@ -676,5 +676,5 @@ function startPollingPago(transactionId) {
           `;
         }
       });
-  }, 3000); // cada 3 segundos
+  }, 3000);
 }
