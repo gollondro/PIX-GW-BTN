@@ -668,9 +668,11 @@ function startPollingPago(transactionId) {
     fetch(`/api/payment/status/${transactionId}`)
       .then(res => res.json())
       .then(result => {
-        console.log('Polling result:', result); // <-- Agrega esto
+        console.log('Polling result:', result);
         if (result.paid) {
           clearInterval(pollingInterval);
+
+          // Reemplaza el contenido del QR
           document.getElementById('qrResult').innerHTML = `
             <div class="alert alert-success text-center">
               <h4>✅ ¡Pago recibido!</h4>
@@ -682,6 +684,20 @@ function startPollingPago(transactionId) {
               <b>Email:</b> ${result.data.email || ''}<br>
             </div>
           `;
+
+          // Mostrar el modal de pago exitoso (Bootstrap 5)
+          const modalBody = document.getElementById('pagoExitosoBody');
+          if (modalBody) {
+            modalBody.innerHTML = `
+              <p class="mb-2">El pago fue confirmado correctamente.</p>
+              <b>Monto:</b> ${result.data.amount} ${result.data.currency}<br>
+              <b>Fecha:</b> ${result.data.paid_at || ''}<br>
+              <b>Cliente:</b> ${result.data.name || ''}<br>
+              <b>Email:</b> ${result.data.email || ''}<br>
+            `;
+            const modal = new bootstrap.Modal(document.getElementById('pagoExitosoModal'));
+            modal.show();
+          }
         }
       });
   }, 3000);
