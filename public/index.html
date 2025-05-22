@@ -109,11 +109,13 @@
                   <label class="form-label lang-cpf">CPF</label>
                   <input type="text" class="form-control" id="cpf" required>
                 </div>
-                 <div class="d-grid gap-2">
-    <button type="submit" class="btn btn-afex lang-generateBtn" id="generateQR">Generar QR</button>
-    <button type="button" class="btn btn-secondary" id="generatePaymentLink">Generar Link de Pago</button>
-  </div>
-</form>
+                
+                <!-- Botones de método de pago -->
+                <div class="d-grid gap-2" id="paymentButtons">
+                  <button type="submit" class="btn btn-afex lang-generateBtn" id="generateQRBtn" style="display: none;">Generar QR</button>
+                  <button type="button" class="btn btn-secondary" id="generatePaymentLinkBtn" style="display: none;">Generar Link de Pago</button>
+                </div>
+              </form>
               
               <!-- Resultado QR -->
               <div id="qrResult" class="mt-4 text-center">

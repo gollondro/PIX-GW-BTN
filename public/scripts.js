@@ -394,6 +394,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (formTitle) {
           formTitle.innerText = translations[currentLang || 'es'].qrTitle;
         }
+        
+        // Mostrar/ocultar botones según permisos del usuario
+        const generateQRBtn = document.getElementById('generateQRBtn');
+        const generatePaymentLinkBtn = document.getElementById('generatePaymentLinkBtn');
+        if (generateQRBtn) {
+          generateQRBtn.style.display = data.allowQR ? 'inline-block' : 'none';
+        }
+        if (generatePaymentLinkBtn) {
+          generatePaymentLinkBtn.style.display = data.allowLink ? 'inline-block' : 'none';
+        }
       } else {
         console.error('❌ Login fallido:', data.error);
         debugLog('❌ Login fallido: ' + (data.error || 'Error desconocido'), 'error');
@@ -578,9 +588,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (formTitle) {
       formTitle.innerText = translations[currentLang || 'es'].loginBtn;
     }
+
+    const generateQRBtn = document.getElementById('generateQRBtn');
+    const generatePaymentLinkBtn = document.getElementById('generatePaymentLinkBtn');
+    if (generateQRBtn) generateQRBtn.style.display = 'none';
+    if (generatePaymentLinkBtn) generatePaymentLinkBtn.style.display = 'none';
   });
 
-  const paymentLinkBtn = document.getElementById('generatePaymentLink');
+  const paymentLinkBtn = document.getElementById('generatePaymentLinkBtn');
   if (paymentLinkBtn) {
     paymentLinkBtn.addEventListener('click', function() {
       const amountCLP = parseFloat(document.getElementById('amount').value);

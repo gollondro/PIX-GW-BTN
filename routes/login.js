@@ -5,9 +5,9 @@ const router = express.Router();
 
 router.post('/', (req, res) => {
   try {
-       // Put the debug logs here where req is defined
+    // Put the debug logs here where req is defined
     console.log('Procesando login request para:', req.body?.email);
-    console.log('Recibida solicitud de login:', req.body); console.log('Recibida solicitud de login:', req.body);
+    console.log('Recibida solicitud de login:', req.body);
     const { email, password } = req.body;
     
     // Validar datos de entrada
@@ -57,6 +57,10 @@ router.post('/', (req, res) => {
       if (user.allowCLP !== undefined) response.allowCLP = user.allowCLP;
       if (user.allowUSD !== undefined) response.allowUSD = user.allowUSD;
       if (user.defaultCurrency) response.defaultCurrency = user.defaultCurrency;
+      
+      // Añadir configuración de métodos de pago
+      if (user.allowQR !== undefined) response.allowQR = user.allowQR;
+      if (user.allowLink !== undefined) response.allowLink = user.allowLink;
       
       console.log('Respuesta de login:', response);
       res.json(response);

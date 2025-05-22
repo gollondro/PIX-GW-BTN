@@ -1,6 +1,7 @@
 // Variable global para el estado de depuración
 let debugModeEnabled = false;
 let sortDirection = 'desc'; // Por defecto, ordenar por fecha descendente (más nuevo primero)
+let usuarios = [];
 
 // Función para activar/desactivar modo depuración
 function toggleDebugMode() {
@@ -57,6 +58,7 @@ async function cargarUsuarios() {
   try {
     const res = await fetch('/api/users');
     const data = await res.json();
+    usuarios = data;
     const tbody = document.getElementById('usuariosBody');
     tbody.innerHTML = '';
     data.forEach((u, i) => {
@@ -88,24 +90,23 @@ function renderCurrencyIcons(user) {
   return icons;
 }
 
-function editarUsuario(i) {
-  const data = JSON.parse(localStorage.getItem('usuarios'))[i];
-  document.getElementById('usuarioIdx').value = i;
-  document.getElementById('userEmail').value = data.email;
-  document.getElementById('userName').value = data.name || '';
-  document.getElementById('userPass').value = data.password;
-  document.getElementById('userMerchant').value = data.merchant_id;
-  document.getElementById('userTiendaActiva').checked = data.ventaTiendaActiva;
-  
-  // Configurar permisos de moneda
-  document.getElementById('userAllowCLP').checked = data.allowCLP !== false;
-  document.getElementById('userAllowUSD').checked = data.allowUSD === true;
-  
-  // Establecer moneda por defecto
-  document.getElementById('userDefaultCurrency').value = data.defaultCurrency || 'CLP';
-  
-  new bootstrap.Modal(document.getElementById('modalUsuario')).show();
-  debugLog(`Editando usuario: ${data.email}`);
+function editarUsuario(idx) {
+  const usuario = usuarios[idx];
+
+  document.getElementById('userEmail').value = usuario.email || '';
+  document.getElementById('userName').value = usuario.name || '';
+  document.getElementById('userPass').value = usuario.password || '';
+  document.getElementById('userMerchant').value = usuario.merchant_id || '';
+  document.getElementById('userAllowCLP').checked = !!usuario.allowCLP;
+  document.getElementById('userAllowUSD').checked = !!usuario.allowUSD;
+  document.getElementById('userDefaultCurrency').value = usuario.defaultCurrency || 'CLP';
+  document.getElementById('userAllowQR').checked = !!usuario.allowQR;
+  document.getElementById('userAllowLink').checked = !!usuario.allowLink;
+  document.getElementById('userTiendaActiva').checked = !!usuario.ventaTiendaActiva;
+
+  // Abre el modal
+  const modal = new bootstrap.Modal(document.getElementById('modalUsuario'));
+  modal.show();
 }
 
 async function eliminarUsuario(i) {
@@ -137,10 +138,11 @@ document.getElementById('formUsuario').addEventListener('submit', async e => {
     password: document.getElementById('userPass').value,
     merchant_id: document.getElementById('userMerchant').value,
     ventaTiendaActiva: document.getElementById('userTiendaActiva').checked,
-    // Campos de moneda
     allowCLP: document.getElementById('userAllowCLP').checked,
     allowUSD: document.getElementById('userAllowUSD').checked,
-    defaultCurrency: document.getElementById('userDefaultCurrency').value
+    defaultCurrency: document.getElementById('userDefaultCurrency').value,
+    allowQR: document.getElementById('userAllowQR').checked,
+    allowLink: document.getElementById('userAllowLink').checked
   };
   
   debugLog(`Guardando usuario: ${usuario.email}`);
@@ -191,18 +193,6 @@ document.getElementById('formUsuario').addEventListener('submit', async e => {
   }
 });
 
-function showTab(tab) {
-  document.getElementById('usuarios').style.display = tab === 'usuarios' ? 'block' : 'none';
-  document.getElementById('transacciones').style.display = tab === 'transacciones' ? 'block' : 'none';
-  document.querySelectorAll('#adminTabs .nav-link').forEach(el => el.classList.remove('active'));
-  document.querySelector(`#adminTabs .nav-link[href="#"][onclick*="${tab}"]`).classList.add('active');
-  
-  debugLog(`Cambiando a pestaña: ${tab}`);
-  
-  if (tab === 'usuarios') cargarUsuarios();
-  else cargarTransacciones();
-}
-
 async function cargarTransacciones() {
   debugLog('Cargando transacciones...');
   
@@ -248,13 +238,10 @@ function filtrar() {
   const data = JSON.parse(localStorage.getItem('transacciones')) || [];
   const fil = data.filter(t => {
     const fecha = new Date(t.date || t.paid_at);
-    
-    // Buscar en múltiples campos de usuario
     const usuarioMatch = !usuario || 
                          (t.createdBy && t.createdBy.toLowerCase().includes(usuario)) || 
                          (t.email && t.email.toLowerCase().includes(usuario)) ||
                          (t.userName && t.userName.toLowerCase().includes(usuario));
-    
     return fecha >= desde && 
            fecha <= hasta && 
            (!estado || t.estado === estado) &&
@@ -272,7 +259,6 @@ function sortTransactions(data, direction = 'desc') {
   return data.sort((a, b) => {
     const dateA = new Date(a.date || a.paid_at);
     const dateB = new Date(b.date || b.paid_at);
-    
     if (direction === 'asc') {
       return dateA - dateB;
     } else {
@@ -282,17 +268,11 @@ function sortTransactions(data, direction = 'desc') {
 }
 
 function renderTransacciones(data) {
-  // Ordenar los datos antes de renderizar
   const sortedData = sortTransactions(data, sortDirection);
-  
   const tbody = document.getElementById('transaccionesBody');
   tbody.innerHTML = '';
-  
   sortedData.forEach(t => {
-    // Determinar el usuario que creó la transacción (quien realizó la cotización)
-    // Priorizar el campo userEmail que ahora guardamos específicamente para esto
     let usuarioInfo = t.userEmail || t.createdBy || t.email || '-';
-    
     tbody.innerHTML += `
       <tr>
         <td>${new Date(t.date || t.paid_at).toLocaleString()}</td>
@@ -305,11 +285,9 @@ function renderTransacciones(data) {
         <td>${usuarioInfo}</td>
       </tr>`;
   });
-  
   debugLog(`Se han renderizado ${sortedData.length} transacciones`);
 }
 
-// Función para mostrar la moneda original de la transacción
 function renderCurrency(transaction) {
   if (transaction.originalCurrency === 'USD') {
     return '<span class="badge bg-primary">USD</span>';
@@ -318,11 +296,8 @@ function renderCurrency(transaction) {
   }
 }
 
-// Función para cambiar la dirección de ordenamiento
 function toggleSortDirection() {
   sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
-  
-  // Actualizar la clase del encabezado de columna
   const sortHeader = document.querySelector('th.sortable[data-sort="fecha"]');
   if (sortDirection === 'asc') {
     sortHeader.classList.add('asc');
@@ -331,34 +306,24 @@ function toggleSortDirection() {
     sortHeader.classList.add('desc');
     sortHeader.classList.remove('asc');
   }
-  
-  // Re-renderizar las transacciones con el nuevo orden
   const data = JSON.parse(localStorage.getItem('transacciones')) || [];
   renderTransacciones(data);
-  
   debugLog(`Dirección de ordenamiento cambiada a: ${sortDirection}`);
 }
 
-// Cargar usuarios para el filtro
 async function cargarUsuariosParaFiltro() {
   try {
     const res = await fetch('/api/users');
     const users = await res.json();
-    
     const select = document.getElementById('filtroUsuario');
     if (!select) return;
-    
-    // Opción vacía para "todos"
     select.innerHTML = '<option value="">Todos</option>';
-    
-    // Añadir cada usuario como opción
     users.forEach(user => {
       const option = document.createElement('option');
       option.value = user.email;
       option.textContent = user.name || user.email;
       select.appendChild(option);
     });
-    
     debugLog('Usuarios cargados para filtro de transacciones');
   } catch (error) {
     debugLog(`Error al cargar usuarios para filtro: ${error.message}`, 'error');
@@ -368,11 +333,9 @@ async function cargarUsuariosParaFiltro() {
 async function cargarTransaccionesLinkPago() {
   const tableBody = document.querySelector('#paymentLinksTable tbody');
   tableBody.innerHTML = '<tr><td colspan="7">Cargando...</td></tr>';
-
   try {
     const res = await fetch('/api/payment/links');
     const data = await res.json();
-
     if (Array.isArray(data) && data.length > 0) {
       tableBody.innerHTML = '';
       data.forEach(tx => {
@@ -396,45 +359,46 @@ async function cargarTransaccionesLinkPago() {
   }
 }
 
-// Llama a la función al cargar la página
-document.addEventListener('DOMContentLoaded', cargarTransaccionesLinkPago);
+// Inicialización principal
+window.addEventListener('DOMContentLoaded', () => {
+  debugLog('Inicializando panel de administración');
 
-document.getElementById('menuUsuarios').onclick = function() {
+  // Mostrar usuarios por defecto
   document.getElementById('seccionUsuarios').style.display = '';
   document.getElementById('seccionTransacciones').style.display = 'none';
   document.getElementById('seccionLinks').style.display = 'none';
-};
 
-document.getElementById('menuTransacciones').onclick = function() {
-  document.getElementById('seccionUsuarios').style.display = 'none';
-  document.getElementById('seccionTransacciones').style.display = '';
-  document.getElementById('seccionLinks').style.display = 'none';
-};
+  // Inicializar datos
+  cargarUsuarios();
+  cargarUsuariosParaFiltro();
 
-document.getElementById('menuLinks').onclick = function() {
-  document.getElementById('seccionUsuarios').style.display = 'none';
-  document.getElementById('seccionTransacciones').style.display = 'none';
-  document.getElementById('seccionLinks').style.display = '';
-  cargarTransaccionesLinkPago(); // Llama a la función para cargar los links
-};
+  // Configurar menú
+  document.getElementById('menuUsuarios').onclick = function() {
+    document.getElementById('seccionUsuarios').style.display = '';
+    document.getElementById('seccionTransacciones').style.display = 'none';
+    document.getElementById('seccionLinks').style.display = 'none';
+  };
+  document.getElementById('menuTransacciones').onclick = function() {
+    document.getElementById('seccionUsuarios').style.display = 'none';
+    document.getElementById('seccionTransacciones').style.display = '';
+    document.getElementById('seccionLinks').style.display = 'none';
+    cargarTransacciones();
+  };
+  document.getElementById('menuLinks').onclick = function() {
+    document.getElementById('seccionUsuarios').style.display = 'none';
+    document.getElementById('seccionTransacciones').style.display = 'none';
+    document.getElementById('seccionLinks').style.display = '';
+    cargarTransaccionesLinkPago();
+  };
 
-// Inicialización
-window.addEventListener('DOMContentLoaded', () => {
-  debugLog('Inicializando panel de administración');
-  
-  // Configurar botón de depuración
+  // Botones de debug
   const debugBtn = document.getElementById('debugBtn');
-  if (debugBtn) {
-    debugBtn.addEventListener('click', toggleDebugMode);
-  }
-  
-  // Configurar botón para limpiar logs
+  if (debugBtn) debugBtn.addEventListener('click', toggleDebugMode);
+
   const clearDebugBtn = document.getElementById('clearDebugBtn');
-  if (clearDebugBtn) {
-    clearDebugBtn.addEventListener('click', clearDebugLogs);
-  }
-  
-  // Configurar ordenamiento al hacer clic en el encabezado
+  if (clearDebugBtn) clearDebugBtn.addEventListener('click', clearDebugLogs);
+
+  // Ordenamiento
   const sortableHeaders = document.querySelectorAll('th.sortable');
   sortableHeaders.forEach(header => {
     header.addEventListener('click', () => {
@@ -443,17 +407,12 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
-  
-  // Recuperar estado de depuración del localStorage
+
+  // Estado debug
   const savedDebugMode = localStorage.getItem('debugMode');
-  if (savedDebugMode === 'enabled') {
-    toggleDebugMode();
-  }
-  
-  // Inicializar primera pestaña
-  cargarUsuarios();
-  cargarUsuariosParaFiltro();
-  
+  if (savedDebugMode === 'enabled') toggleDebugMode();
+
+  // Logout
   document.getElementById('logoutBtn').addEventListener('click', () => {
     debugLog('Cerrando sesión');
     location.href = '/';

@@ -9,7 +9,9 @@
     "requiereIdVentaTienda": true,
     "allowCLP": true,
     "allowUSD": true,
-    "defaultCurrency": "CLP"
+    "defaultCurrency": "CLP",
+    "allowQR": true,
+    "allowLink": true
   },
   {
     "email": "mcaracci@gmail.com",
@@ -19,7 +21,9 @@
     "ventaTiendaActiva": true,
     "allowCLP": true,
     "allowUSD": false,
-    "defaultCurrency": "CLP"
+    "defaultCurrency": "CLP",
+    "allowQR": true,
+    "allowLink": false
   },
   {
     "email": "dolar@afex.cl",
@@ -29,6 +33,8 @@
     "ventaTiendaActiva": true,
     "allowCLP": false,
     "allowUSD": true,
-    "defaultCurrency": "USD"
+    "defaultCurrency": "USD",
+    "allowQR": false,
+    "allowLink": true
   }
 ]

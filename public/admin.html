@@ -41,13 +41,15 @@
   </div>
 
   <div class="container mt-4">
-    <ul class="nav nav-tabs mb-3" id="adminTabs">
-      <li class="nav-item"><a class="nav-link active" href="#" onclick="showTab('usuarios')">Usuarios</a></li>
-      <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('transacciones')">Transacciones</a></li>
-    </ul>
+    <!-- Menú -->
+    <div class="mb-3">
+      <button id="menuUsuarios" class="btn btn-afex me-2" onclick="showSection('usuarios')">Usuarios</button>
+      <button id="menuTransacciones" class="btn btn-afex me-2" onclick="showSection('transacciones')">Transacciones</button>
+      <button id="menuLinks" class="btn btn-afex" onclick="showSection('links')">Links de Pago</button>
+    </div>
 
-    <!-- Usuarios -->
-    <div id="usuarios" class="tab-content">
+    <!-- Secciones -->
+    <div id="seccionUsuarios" class="mb-4">
       <div class="d-flex justify-content-between mb-2">
         <h5>Usuarios registrados</h5>
         <button class="btn btn-afex btn-sm" data-bs-toggle="modal" data-bs-target="#modalUsuario">Agregar Usuario</button>
@@ -59,6 +61,7 @@
             <th>Nombre</th>
             <th>Merchant</th>
             <th>Monedas</th>
+            <th>Métodos</th>
             <th>Activo</th>
             <th></th>
           </tr>
@@ -67,8 +70,7 @@
       </table>
     </div>
 
-    <!-- Transacciones -->
-    <div id="transacciones" class="tab-content" style="display: none;">
+    <div id="seccionTransacciones" class="mb-4" style="display:none;">
       <div class="mb-2"><h5>Transacciones</h5></div>
       <div class="row mb-2">
         <div class="col-md-2">
@@ -117,22 +119,24 @@
       </table>
     </div>
 
-    <h3>Transacciones Link de Pago</h3>
-    <table class="table table-striped" id="paymentLinksTable">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Cliente</th>
-          <th>Email</th>
-          <th>Monto (USD)</th>
-          <th>Fecha</th>
-          <th>Estado</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Aquí se llenarán las filas dinámicamente -->
-      </tbody>
-    </table>
+    <div id="seccionLinks" style="display:none;">
+      <h3>Transacciones Link de Pago</h3>
+      <table class="table table-striped" id="paymentLinksTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Cliente</th>
+            <th>Email</th>
+            <th>Monto (USD)</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Aquí se llenarán las filas dinámicamente -->
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Modal usuario -->
@@ -177,6 +181,18 @@
               <option value="CLP">CLP</option>
               <option value="USD">USD</option>
             </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Métodos de pago permitidos</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="userAllowQR" checked>
+              <label class="form-check-label" for="userAllowQR">Permitir generación de códigos QR</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="userAllowLink">
+              <label class="form-check-label" for="userAllowLink">Permitir generación de enlaces de pago</label>
+            </div>
           </div>
           
           <div class="form-check">

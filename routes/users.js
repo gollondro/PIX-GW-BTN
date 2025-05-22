@@ -44,6 +44,14 @@ router.post('/', adminAuth, (req, res) => {
         error: 'El usuario debe tener al menos una moneda habilitada'
       });
     }
+
+    // Validar que al menos un método de pago esté habilitado
+    if (req.body.allowQR === false && req.body.allowLink !== true) {
+      return res.status(400).json({
+        success: false,
+        error: 'El usuario debe tener al menos un método de pago habilitado'
+      });
+    }
     
     // Validar que la moneda por defecto esté habilitada
     if (req.body.defaultCurrency === 'CLP' && req.body.allowCLP === false) {
@@ -95,6 +103,14 @@ router.put('/:id', adminAuth, (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'El usuario debe tener al menos una moneda habilitada'
+      });
+    }
+
+    // Validar que al menos un método de pago esté habilitado
+    if (req.body.allowQR === false && req.body.allowLink !== true) {
+      return res.status(400).json({
+        success: false,
+        error: 'El usuario debe tener al menos un método de pago habilitado'
       });
     }
     
