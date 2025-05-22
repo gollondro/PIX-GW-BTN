@@ -319,10 +319,32 @@ router.post('/payment-link', async (req, res) => {
     console.log('🌐 Respuesta de Agillitas:', data);
 
     if (data.success && data.data && data.data.id) {
+      // Guardar la transacción
+      const linkTxFile = path.join(__dirname, '../db/payment_links.json');
+      let linkTxs = [];
+      if (fs.existsSync(linkTxFile)) {
+        try {
+          linkTxs = JSON.parse(fs.readFileSync(linkTxFile, 'utf8'));
+        } catch (e) { linkTxs = []; }
+      }
+      linkTxs.push({
+        id: data.data.id,
+        transactionId,
+        name,
+        email,
+        phone,
+        cpf,
+        amount, // <-- importante
+        currency,
+        date: new Date().toISOString(),
+        status: 'PENDIENTE'
+      });
+      fs.writeFileSync(linkTxFile, JSON.stringify(linkTxs, null, 2));
+
       res.json({
         success: true,
-        id: data.data.id, // <-- debe ser id, no data: { id: ... }
-        transactionId // si quieres devolverlo
+        id: data.data.id,
+        transactionId
       });
     } else {
       return res.status(400).json({ success: false, error: data.message || 'No se pudo generar el link de pago' });
