@@ -452,6 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const currency = document.querySelector('input[name="currency"]:checked')?.value || currentCurrency || 'CLP';
       
       // Preparar los datos a enviar
+      const transactionId = uuidv4();
       const formData = {
         currency,
         amount,
@@ -460,7 +461,8 @@ document.addEventListener('DOMContentLoaded', function() {
         phone,
         cpf,
         // Incluir email del usuario logueado que hace la cotización
-        userEmail: session.email
+        userEmail: session.email,
+        controlNumber: transactionId // Usa tu propio ID aquí
       };
       
       // En el servidor, podría esperar amountCLP o amountUSD en lugar de solo 'amount'
@@ -622,6 +624,12 @@ document.addEventListener('DOMContentLoaded', function() {
               El cliente recibirá un correo con las instrucciones de pago en <strong>${email}</strong>.
             </div>
           `;
+
+          linkTxs.push({
+            id: data.data.id, // ID de Agillitas
+            transactionId,    // Tu propio ID local
+            // ...
+          });
         } else {
           qrResult.innerHTML = `
             <div class="alert alert-danger">Error al generar la solicitud de link de pago</div>

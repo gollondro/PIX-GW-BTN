@@ -27,7 +27,7 @@ router.post('/', (req, res) => {
         linkTxs = JSON.parse(fs.readFileSync(linkTxFile, 'utf8'));
       } catch (e) { linkTxs = []; }
     }
-    const idx = linkTxs.findIndex(tx => String(tx.id) === String(transactionId));
+    const idx = linkTxs.findIndex(tx => String(tx.transactionId) === String(transactionId));
     if (idx !== -1) {
       // Solo actualiza si el estado es pagado
       if (status === 'PAID' || status === 'COMPLETED' || status === 'APROVADO') {
