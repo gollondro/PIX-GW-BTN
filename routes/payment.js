@@ -402,3 +402,11 @@ function startPollingPago(transactionId) {
       });
   }, 3000); // cada 3 segundos
 }
+
+if (tipoDePago === 'QR') {
+  // Mostrar QR y empezar polling
+  startPollingPago(transactionId);
+} else if (tipoDePago === 'LINK') {
+  // Mostrar mensaje: "El cliente recibirá el link por email"
+  // No hacer polling
+}
