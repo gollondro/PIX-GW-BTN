@@ -681,7 +681,6 @@ function startPollingPago(transactionId) {
               <h4>✅ ¡Pago recibido!</h4>
               <p>El pago fue confirmado correctamente.</p>
               <hr>
-              <b>Monto:</b> ${result.data.amount} ${result.data.currency}<br>
               <b>Fecha:</b> ${result.data.paid_at || ''}<br>
               <b>Cliente:</b> ${result.data.name || ''}<br>
               <b>Email:</b> ${result.data.email || ''}<br>
@@ -693,7 +692,6 @@ function startPollingPago(transactionId) {
           if (modalBody) {
             modalBody.innerHTML = `
               <p class="mb-2">El pago fue confirmado correctamente.</p>
-              <b>Monto:</b> ${result.data.amount} ${result.data.currency}<br>
               <b>Fecha:</b> ${result.data.paid_at || ''}<br>
               <b>Cliente:</b> ${result.data.name || ''}<br>
               <b>Email:</b> ${result.data.email || ''}<br>
