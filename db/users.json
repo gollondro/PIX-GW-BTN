@@ -18,7 +18,7 @@
     "name": "Marcelo Caracci",
     "password": "12345",
     "merchant_id": "3111",
-    "ventaTiendaActiva": true,
+    "ventaTiendaActiva": false,
     "allowCLP": true,
     "allowUSD": false,
     "defaultCurrency": "CLP",
