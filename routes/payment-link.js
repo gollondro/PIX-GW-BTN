@@ -58,12 +58,20 @@ router.post('/', async (req, res) => {
     const customer = { name, email, phone, cpf };
     const webhookUrl = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
 
-    const linkResponse = await rendixApi.createPaymentLink({
-      amountUSD: parseFloat(amountUSD),
-      customer,
-      controlNumber: transactionId,
-      description
-    });
+    const payload = {
+      merchantId: 3111,
+      purchase: Number(amount),
+      description: `Link de pago para ${name}`,
+      controlNumber: transactionId, // <-- Usa el mismo ID
+      email,
+      UrlWebhook: webhookUrl,
+      currencyCode: currency,
+      operationCode: 1,
+      beneficiary: name
+    };
+    console.log('➡️ Payload enviado a Rendix (Link de Pago):', JSON.stringify(payload, null, 2));
+    const linkResponse = await rendixApi.createPaymentLink(payload);
+    console.log('⬅️ Respuesta de Rendix (Link de Pago):', JSON.stringify(linkResponse, null, 2));
 
     const parsedUSD = parseFloat(amountUSD);
     let amountBRL;

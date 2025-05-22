@@ -73,29 +73,24 @@ router.post('/', async (req, res) => {
     
     // Generar ID unico para la transaccion
     const transactionId = uuidv4();
-    
-    // Preparar los datos del cliente para la API
-    const customer = {
-      name,
-      email,
-      phone,
-      cpf
-    };
 
-    // Verificar que tenemos configurado el webhook
+    const customer = { name, email, phone, cpf };
     const webhookUrl = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
-    console.log('📡 Webhook URL configurada:', webhookUrl);
-    
-    // Llamar a la API de Rendix para crear la solicitud de pago
-    console.log('🔄 Conectando con API de RENPIX...');
-    
-    const pixResponse = await rendixApi.createPixChargeLink({
+
+    const pixPayload = {
       amountUSD: parseFloat(amountUSD),
       customer,
-      controlNumber: transactionId
-    });
-    
-    console.log('📥 Respuesta API RENPIX:', pixResponse);
+      controlNumber: transactionId, // Usa el mismo ID
+      webhook: webhookUrl // o el nombre que requiera la API
+    };
+
+    // LOG del payload que se enviará a Renpix (QR)
+    console.log('➡️ Payload enviado a Renpix (QR):', JSON.stringify(pixPayload, null, 2));
+
+    const pixResponse = await rendixApi.createPixChargeLink(pixPayload);
+
+    // LOG de la respuesta de Renpix (QR)
+    console.log('⬅️ Respuesta de Renpix (QR):', JSON.stringify(pixResponse, null, 2));
     
     // Loguear todas las propiedades de la respuesta para debugging
     if (pixResponse) {
@@ -285,7 +280,7 @@ router.post('/payment-link', async (req, res) => {
     merchantId: 3111,
     purchase: Number(amount),
     description: `Link de pago para ${name}`,
-    controlNumber: `UUID-UNICO-${Date.now()}`,
+    controlNumber: transactionId, // Usa el mismo ID aquí
     email,
     UrlWebhook: webhookUrl,
     currencyCode: currency,
@@ -303,7 +298,7 @@ router.post('/payment-link', async (req, res) => {
       return res.status(500).json({ success: false, error: 'No se obtuvo token de Agillitas' });
     }
 
-    console.log('➡️ Enviando solicitud a Agillitas con payload:', payload);
+    console.log('➡️ Enviando solicitud a Agillitas con payload:', JSON.stringify(payload, null, 2));
 
     const response = await fetch('https://apisandbox.agillitas.com.br/efx/v1/external/link', {
       method: 'POST',
@@ -316,7 +311,7 @@ router.post('/payment-link', async (req, res) => {
 
     console.log('⬅️ Esperando respuesta de Agillitas...');
     const data = await response.json();
-    console.log('🌐 Respuesta de Agillitas:', data);
+    console.log('🌐 Respuesta de Agillitas:', JSON.stringify(data, null, 2));
 
     if (data.success && data.data && data.data.id) {
       // Guardar la transacción
