@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pago PIX - Afex</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    .bg-afex { background-color: #00A859; }
+    .text-afex { color: #00A859; }
+    .btn-afex { background-color: #00A859; color: #fff; border: none; }
+    .btn-afex:hover { background-color: #007a4d; color: #fff; }
+    
+    body { 
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .payment-container {
+      max-width: 500px;
+      margin: 2rem auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    .payment-header {
+      background: linear-gradient(135deg, #00A859 0%, #007a4d 100%);
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    
+    .payment-body {
+      padding: 2rem;
+    }
+    
+    .qr-container {
+      text-align: center;
+      margin: 1.5rem 0;
+    }
+    
+    .qr-image {
+      max-width: 250px;
+      border: 3px solid #00A859;
+      border-radius: 10px;
+      padding: 10px;
+      background: white;
+      box-shadow: 0 5px 15px rgba(0,168,89,0.2);
+    }
+    
+    .info-card {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      border-left: 4px solid #00A859;
+    }
+    
+    .amount-display {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #00A859;
+      text-align: center;
+      margin: 1rem 0;
+    }
+    
+    .countdown {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 5px;
+      padding: 0.75rem;
+      text-align: center;
+      font-weight: bold;
+      color: #856404;
+      margin: 1rem 0;
+    }
+    
+    .status-success {
+      background: #d1eddb;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    
+    .status-expired {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #00A859;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .copy-button {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.5rem;
+    }
+    
+    .payment-link {
+      word-break: break-all;
+      font-size: 0.9rem;
+      background: #e9ecef;
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ced4da;
+    }
+  </style>
+</head>
+<body>
+  <div class="payment-container">
+    <div class="payment-header">
+      <img src="/img/afex-logo.png" alt="Afex" height="40" class="mb-2">
+      <h4 class="mb-0">Pago con PIX</h4>
+      <small>Procesado por Afex</small>
+    </div>
+    
+    <div class="payment-body">
+      <div id="loadingSection">
+        <div class="text-center">
+          <div class="loading-spinner"></div>
+          <p class="mt-2">Cargando información del pago...</p>
+        </div>
+      </div>
+      
+      <div id="paymentSection" style="display: none;">
+        <!-- Información del cliente -->
+        <div class="info-card">
+          <h6 class="text-afex mb-2">📄 Información del Pago</h6>
+          <div class="row">
+            <div class="col-6">
+              <small class="text-muted">Cliente:</small><br>
+              <strong id="customerName">-</strong>
+            </div>
+            <div class="col-6">
+              <small class="text-muted">Email:</small><br>
+              <strong id="customerEmail">-</strong>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Montos y tasa de cambio -->
+        <div class="info-card">
+          <h6 class="text-afex mb-2">💰 Detalles del Monto</h6>
+          <div class="amount-display" id="amountUSD">$0.00 USD</div>
+          <div class="row text-center">
+            <div class="col-6">
+              <small class="text-muted">Tasa USD → BRL (vet)</small><br>
+              <strong id="usdToBrlRate">0</strong>
+            </div>
+            <div class="col-6">
+              <small class="text-muted">BRL (Cliente paga)</small><br>
+              <strong class="text-success" id="amountBRL">R$ 0.00</strong>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Código QR -->
+        <div class="qr-container">
+          <div id="qrCodeContainer">
+            <img id="qrImage" class="qr-image img-fluid" alt="Código QR PIX" style="display: none;">
+            <div id="qrError" class="alert alert-warning" style="display: none;">
+              <strong>⚠️ QR no disponible</strong><br>
+              Use el enlace de pago a continuación.
+            </div>
+          </div>
+        </div>
+        
+        <!-- Enlace de pago -->
+        <div id="paymentLinkSection" style="display: none;">
+          <h6 class="text-afex">🔗 Enlace de Pago PIX:</h6>
+          <div class="d-flex">
+            <div class="payment-link flex-grow-1" id="paymentLink">-</div>
+            <button class="btn btn-outline-afex copy-button ms-2" onclick="copyPaymentLink()">
+              📋 Copiar
+            </button>
+          </div>
+        </div>
+        
+        <!-- Countdown -->
+        <div id="countdown" class="countdown">
+          <div class="loading-spinner"></div>
+          Verificando estado del pago...
+        </div>
+        
+        <!-- Estado del pago -->
+        <div id="paymentStatus" style="display: none;"></div>
+        
+        <!-- Código QR PIX (nuevo) -->
+        <div id="pixQrContainer" class="qr-container" style="display:none;">
+          <img id="pixQrImg" class="qr-image" src="" alt="QR PIX" />
+          <div class="mt-2">
+            <b>Código de transacción:</b>
+            <span id="pixCode"></span>
+          </div>
+        </div>
+      </div>
+      
+      <div id="errorSection" style="display: none;">
+        <div class="alert alert-danger">
+          <h6>❌ Error</h6>
+          <p id="errorMessage">Ha ocurrido un error al cargar la información del pago.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let transactionId = null;
+    let pollingInterval = null;
+    let countdownInterval = null;
+    let expiresAt = null;
+
+    // Obtener ID de la transacción de la URL
+    const pathParts = window.location.pathname.split('/');
+    transactionId = pathParts[pathParts.length - 1];
+
+    if (!transactionId) {
+      showError('ID de transacción no válido');
+    } else {
+      loadPaymentData();
+    }
+
+    async function loadPaymentData() {
+      try {
+        const response = await fetch(`/api/payment-button/transaction/${transactionId}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Error al cargar datos');
+        }
+
+        displayPaymentData(data.transaction);
+        startPolling();
+
+      } catch (error) {
+        console.error('Error loading payment data:', error);
+        showError(error.message);
+      }
+    }
+
+    function displayPaymentData(transaction) {
+      document.getElementById('loadingSection').style.display = 'none';
+      document.getElementById('paymentSection').style.display = 'block';
+
+      // Información del cliente
+      document.getElementById('customerName').textContent = transaction.customer?.name || '-';
+      document.getElementById('customerEmail').textContent = transaction.customer?.email || '-';
+
+      // Montos y tasa reales (usa los campos reales de la API)
+      document.getElementById('amountUSD').textContent =
+  (transaction.amountUSD !== undefined && transaction.amountUSD !== null)
+    ? `$${Number(transaction.amountUSD).toFixed(2)} USD`
+    : '-';
+
+document.getElementById('usdToBrlRate').textContent =
+  (transaction.vetTax !== undefined && transaction.vetTax !== null)
+    ? Number(transaction.vetTax).toFixed(4)
+    : '-';
+
+document.getElementById('amountBRL').textContent =
+  (transaction.priceNationalCurrency !== undefined && transaction.priceNationalCurrency !== null)
+    ? `R$ ${Number(transaction.priceNationalCurrency).toFixed(2)}`
+    : '-';
+
+      // Mostrar QR PIX si está disponible
+      if (transaction.pixQrBase64) {
+        document.getElementById('pixQrImg').src = 'data:image/png;base64,' + transaction.pixQrBase64;
+        document.getElementById('pixQrContainer').style.display = '';
+      }
+      // Mostrar código PIX si está disponible
+      if (transaction.pixCode) {
+        document.getElementById('pixCode').textContent = transaction.pixCode;
+        document.getElementById('pixQrContainer').style.display = '';
+      }
+
+      // Expiración (para countdown)
+      if (transaction.qrCodeExpiration) {
+        expiresAt = new Date(transaction.qrCodeExpiration);
+        startCountdown();
+      }
+    }
+
+    async function loadQRData() {
+      try {
+        // Hacer una nueva llamada para obtener datos del QR
+        const response = await fetch('/api/payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currency: 'USD',
+            amount: parseFloat(document.getElementById('amountUSD').textContent.replace(/[$USD ]/g, '')),
+            name: document.getElementById('customerName').textContent,
+            email: document.getElementById('customerEmail').textContent,
+            phone: '+5511987654321', // TODO: obtener del transaction data
+            cpf: '12979230901', // TODO: obtener del transaction data
+            userEmail: 'mcaracci@gmail.com',
+            customerCpf: '12979230901',
+            customerPhone: '+5511987654321',
+          })
+        });
+
+        const qrData = await response.json();
+
+        if (qrData.success && qrData.qrData) {
+          // Mostrar QR si está disponible
+          if (qrData.qrData.qrCodeBase64) {
+            const qrImage = document.getElementById('qrImage');
+            qrImage.src = `data:image/png;base64,${qrData.qrData.qrCodeBase64}`;
+            qrImage.style.display = 'block';
+          } else {
+            document.getElementById('qrError').style.display = 'block';
+          }
+
+          // Mostrar enlace de pago si está disponible
+          if (qrData.qrData.pixCopyPast) {
+            document.getElementById('paymentLink').textContent = qrData.qrData.pixCopyPast;
+            document.getElementById('paymentLinkSection').style.display = 'block';
+          }
+
+          // Configurar expiración
+          if (qrData.expiresAt) {
+            expiresAt = new Date(qrData.expiresAt);
+            startCountdown();
+          }
+        }
+      } catch (error) {
+        console.error('Error loading QR data:', error);
+        document.getElementById('qrError').style.display = 'block';
+      }
+    }
+
+    function startPolling() {
+      pollingInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/payment/status/${transactionId}`);
+          const result = await response.json();
+
+          if (result.paid) {
+            clearInterval(pollingInterval);
+            if (countdownInterval) clearInterval(countdownInterval);
+            showPaymentSuccess(result.data);
+          }
+        } catch (error) {
+          console.error('Polling error:', error);
+        }
+      }, 3000);
+    }
+
+    function startCountdown() {
+      if (!expiresAt) return;
+
+      countdownInterval = setInterval(() => {
+        const now = new Date().getTime();
+        const timeLeft = expiresAt.getTime() - now;
+
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          showExpired();
+          return;
+        }
+
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+        document.getElementById('countdown').innerHTML = 
+          `⏰ Tiempo restante: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      }, 1000);
+    }
+
+    function showPaymentSuccess(paymentData) {
+      const statusDiv = document.getElementById('paymentStatus');
+      statusDiv.innerHTML = `
+        <div class="alert alert-success status-success text-center">
+          <h5>✅ ¡Pago Confirmado!</h5>
+          <p class="mb-2">El pago ha sido procesado exitosamente.</p>
+          <hr>
+          <small>
+            <strong>Fecha:</strong> ${paymentData.paid_at || new Date().toLocaleString()}<br>
+            <strong>Monto:</strong> R$ ${paymentData.amountBRL || 'N/A'}
+          </small>
+        </div>
+      `;
+      statusDiv.style.display = 'block';
+      
+      document.getElementById('countdown').style.display = 'none';
+      
+      // Notificar al padre si estamos en un iframe
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'PAYMENT_SUCCESS',
+          transactionId: transactionId,
+          data: paymentData
+        }, '*');
+      }
+    }
+
+    function showExpired() {
+      const statusDiv = document.getElementById('paymentStatus');
+      statusDiv.innerHTML = `
+        <div class="alert alert-warning status-expired text-center">
+          <h6>⚠️ Código Expirado</h6>
+          <p class="mb-0">El tiempo para realizar el pago ha expirado.</p>
+        </div>
+      `;
+      statusDiv.style.display = 'block';
+      
+      document.getElementById('countdown').style.display = 'none';
+    }
+
+    function showError(message) {
+      document.getElementById('loadingSection').style.display = 'none';
+      document.getElementById('paymentSection').style.display = 'none';
+      document.getElementById('errorSection').style.display = 'block';
+      document.getElementById('errorMessage').textContent = message;
+    }
+
+    function copyPaymentLink() {
+      const linkText = document.getElementById('paymentLink').textContent;
+      navigator.clipboard.writeText(linkText).then(() => {
+        // Cambiar texto del botón temporalmente
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '✅ Copiado';
+        setTimeout(() => {
+          button.innerHTML = originalText;
+        }, 2000);
+      });
+    }
+
+    // Limpiar intervalos al cerrar la ventana
+    window.addEventListener('beforeunload', () => {
+      if (pollingInterval) clearInterval(pollingInterval);
+      if (countdownInterval) clearInterval(countdownInterval);
+    });
+  </script>
+</body>
+</html>
