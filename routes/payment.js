@@ -243,6 +243,7 @@ router.post('/', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error al procesar la solicitud de pago:', error);
+    console.error('Detalles respuesta:', error.response?.data);
     res.status(500).json({
       success: false,
       error: `Error del servidor: ${error.message}`

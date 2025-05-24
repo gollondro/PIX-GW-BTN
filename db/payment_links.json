@@ -299,5 +299,18 @@
     "date": "2025-05-23T15:13:13.106Z",
     "status": "PENDIENTE",
     "userEmail": "desconocido"
+  },
+  {
+    "id": 81560,
+    "transactionId": "355116cb-7e26-4bf4-9af0-b06bd3691c32",
+    "name": "marcelo Caracci",
+    "email": "mcaracci@gmail.com",
+    "phone": "+551112345789",
+    "cpf": "12979230901",
+    "amount": "0.48",
+    "currency": "USD",
+    "date": "2025-05-24T11:52:58.197Z",
+    "status": "PENDIENTE",
+    "userEmail": "desconocido"
   }
 ]

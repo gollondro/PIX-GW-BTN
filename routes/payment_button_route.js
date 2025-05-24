@@ -32,10 +32,10 @@ router.post('/generate', async (req, res) => {
       internalId: transactionId,
       userEmail: req.body.userEmail,
       amountUSD: req.body.amountUSD,
-      amountCLP: 25000,
-      amountBRL: 130,
-      rateCLPperUSD: 1000,
-      usdToBrlRate: 5.2,
+   //   amountCLP: 25000,
+   //   amountBRL: 130,
+   //   rateCLPperUSD: 1000,
+   //   usdToBrlRate: 5.2,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
       createdAt: new Date().toISOString(),
       status: 'PENDIENTE',
@@ -45,7 +45,7 @@ router.post('/generate', async (req, res) => {
         phone: req.body.customerPhone,
         cpf: req.body.customerCpf
       },
-      pixQrBase64: pixResult.qrCodeBase64 || '', // QR en base64
+      pixQrBase64:'GENERADO OK' || '', // QR en base64
       pixCode: pixResult.pixCopyPast || '',       // Código copy-paste
       vetTax: pixResult.vetTax, // <--- agrega esto
       priceNationalCurrency: pixResult.priceNationalCurrency // <--- agrega esto
