@@ -3,13 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
-const rendixApi = require('../services/rendixApi');
-
-console.log('payment_button_route.js cargado');
+const rendixApi = require('../services/rendixApi'); // Importar el servicio de API
 
 // Endpoint público para generar QR desde comercio externo 
-// 
-// 
 router.post('/generate', async (req, res) => {
   try {
     const transactionId = 'DEMO-' + Date.now();
@@ -27,15 +23,11 @@ router.post('/generate', async (req, res) => {
       webhook: 'https://pix-gateway-dev2.onrender.com/api/webhook'
     });
 
-    // Ajusta los nombres de los campos según la respuesta real de RENPIX
+    // Crear la transacción sin almacenar el QR base64
     const transaction = {
       internalId: transactionId,
       userEmail: req.body.userEmail,
       amountUSD: req.body.amountUSD,
-   //   amountCLP: 25000,
-   //   amountBRL: 130,
-   //   rateCLPperUSD: 1000,
-   //   usdToBrlRate: 5.2,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
       createdAt: new Date().toISOString(),
       status: 'PENDIENTE',
@@ -45,13 +37,17 @@ router.post('/generate', async (req, res) => {
         phone: req.body.customerPhone,
         cpf: req.body.customerCpf
       },
-      pixQrBase64:'GENERADO OK' || '', // QR en base64
-      pixCode: pixResult.pixCopyPast || '',       // Código copy-paste
-      vetTax: pixResult.vetTax, // <--- agrega esto
-      priceNationalCurrency: pixResult.priceNationalCurrency // <--- agrega esto
+      // Omitir pixQrBase64 y pixCode para no almacenarlos
+      vetTax: pixResult.vetTax,
+      priceNationalCurrency: pixResult.priceNationalCurrency,
+      // Agregar información del QR para la respuesta
+      qrData: {
+        pixCopyPast: pixResult.pixCopyPast || '',
+        qrCodeBase64: pixResult.qrCodeBase64 || ''
+      }
     };
 
-    // Guarda la transacción en el archivo
+    // Guardar transacción sin QR
     const externalFile = path.join(__dirname, '../db/external_transactions.json');
     let transactions = [];
     if (fs.existsSync(externalFile)) {
@@ -65,10 +61,7 @@ router.post('/generate', async (req, res) => {
       paymentUrl: `/payment-window/${transactionId}`,
       transactionId,
       amountUSD: transaction.amountUSD,
-      amountCLP: transaction.amountCLP,
-      amountBRL: transaction.amountBRL,
-      rateCLPperUSD: transaction.rateCLPperUSD,
-      usdToBrlRate: transaction.usdToBrlRate,
+      qrData: transaction.qrData, // Incluir datos del QR en la respuesta
       expiresAt: transaction.expiresAt
     });
   } catch (error) {
@@ -100,6 +93,7 @@ router.get('/transaction/:id', (req, res) => {
       });
     }
 
+    // Agregar llamada a la API para obtener QR fresco
     res.json({
       success: true,
       transaction
