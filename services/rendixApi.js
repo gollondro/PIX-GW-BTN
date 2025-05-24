@@ -1,48 +1,56 @@
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 let token = null;
 let tokenExpiry = null;
 
-async function authenticate() {
+// Modifica authenticate para aceptar credenciales personalizadas
+async function authenticate({ renpix_email, renpix_password, userEmail } = {}) {
   console.log('🔐 Autenticando en Rendix...');
+  let email = renpix_email;
+  let password = renpix_password;
+
+  // Si no se pasan credenciales, busca por userEmail en users.json
+  if ((!email || !password) && userEmail) {
+    const usersFile = path.join(__dirname, '../db/users.json');
+    if (fs.existsSync(usersFile)) {
+      const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+      const user = users.find(u => u.email === userEmail);
+      if (user && user.renpix_email && user.renpix_password) {
+        email = user.renpix_email;
+        password = user.renpix_password;
+        console.log(`🔑 Usando credenciales de usuario: ${email}`);
+      }
+    }
+  }
+
+  // Si aún no hay credenciales, usa las de entorno
+  if (!email || !password) {
+    email = process.env.RENPIX_EMAIL;
+    password = process.env.RENPIX_PASSWORD;
+    console.log('🔑 Usando credenciales de entorno por defecto');
+  }
+
   try {
-    console.log('URL API:', process.env.RENPIX_API_URL);
-    console.log('Email:', process.env.RENPIX_EMAIL);
-    console.log('Merchant ID:', process.env.RENPIX_MERCHANT_ID);
-    
     const res = await axios.post(`${process.env.RENPIX_API_URL}/login`, {
-      email: process.env.RENPIX_EMAIL,
-      password: process.env.RENPIX_PASSWORD
+      email,
+      password
     }, {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    console.log('🔍 Respuesta autenticación (status):', res.status);
-    
     if (res.data && res.data.data && res.data.data.token) {
       token = res.data.data.token;
-      // Establecer expiración del token (podría ser diferente según la API)
       tokenExpiry = new Date(Date.now() + 23 * 60 * 60 * 1000); // 23 horas
       console.log('✅ Token obtenido, válido hasta:', tokenExpiry);
       return token;
     } else {
-      console.error('❌ Error en formato de respuesta de autenticación:', JSON.stringify(res.data));
       throw new Error('Formato de respuesta de autenticación inválido');
     }
   } catch (error) {
     console.error('❌ Error de autenticación:', error.message);
-    if (error.response) {
-      console.error('Detalles respuesta:', {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        data: error.response.data
-      });
-    } else if (error.request) {
-      console.error('Error en la solicitud (no se recibió respuesta)');
-    } else {
-      console.error('Error en la configuración de la solicitud:', error.message);
-    }
     throw error;
   }
 }
@@ -305,4 +313,4 @@ btnGenerateLink.addEventListener('click', async () => {
   }
 }
 
-module.exports = { createPixChargeLink, createPaymentLink };
+module.exports = { authenticate, createPixChargeLink, createPaymentLink };

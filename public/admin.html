@@ -230,6 +230,15 @@
               <input class="form-check-input" type="checkbox" id="userTiendaActiva">
               <label class="form-check-label" for="userTiendaActiva">Requiere ID interno de tienda</label>
             </div>
+
+            <div class="mb-3">
+              <label class="form-label">Email Rendix</label>
+              <input type="email" class="form-control" id="userRenpixEmail" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Password Rendix</label>
+              <input type="password" class="form-control" id="userRenpixPassword" required>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-afex">Guardar</button>
@@ -243,16 +252,18 @@
 <script src="/admin.js"></script>
 <script>
   function showSection(section) {
+  // Oculta todas las secciones principales
   document.getElementById('seccionUsuarios').style.display = 'none';
   document.getElementById('seccionTransacciones').style.display = 'none';
   document.getElementById('seccionLinks').style.display = 'none';
   document.getElementById('seccionTransaccionesBoton').style.display = 'none';
 
-  if (section === 'usuarios') document.getElementById('seccionUsuarios').style.display = '';
-  if (section === 'transacciones') document.getElementById('seccionTransacciones').style.display = '';
-  if (section === 'links') document.getElementById('seccionLinks').style.display = '';
+  // Muestra solo la sección seleccionada
+  if (section === 'usuarios') document.getElementById('seccionUsuarios').style.display = 'block';
+  if (section === 'transacciones') document.getElementById('seccionTransacciones').style.display = 'block';
+  if (section === 'links') document.getElementById('seccionLinks').style.display = 'block';
   if (section === 'transaccionesBoton') {
-    document.getElementById('seccionTransaccionesBoton').style.display = '';
+    document.getElementById('seccionTransaccionesBoton').style.display = 'block';
     cargarTransaccionesBoton();
   }
 }

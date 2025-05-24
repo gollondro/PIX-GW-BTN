@@ -2034,5 +2034,35 @@
     "originalCurrency": "CLP",
     "webhookUrl": "https://pix-gateway-dev2.onrender.com/api/webhook",
     "userEmail": "afexlojista@teste.com"
+  },
+  {
+    "id": "9ff43b4d-7811-41f6-a398-7c68e7d4e20e",
+    "name": "marcelo Caracci",
+    "email": "mcaracci@gmail.com",
+    "phone": "+5511123456789",
+    "cpf": "12979230901",
+    "amountCLP": "21620",
+    "amountUSD": "23",
+    "amountBRL": "135.57",
+    "date": "2025-05-24T21:36:44.223Z",
+    "status": "PENDIENTE",
+    "originalCurrency": "USD",
+    "webhookUrl": "https://pix-gateway-dev2.onrender.com/api/webhook",
+    "userEmail": "afexlojista@teste.com"
+  },
+  {
+    "id": "fdbf2daa-600b-4e1b-8ba5-922cd20d07f4",
+    "name": "marcelo Caracci",
+    "email": "mcaracci@gmail.com",
+    "phone": "+5511123456789",
+    "cpf": "12979230901",
+    "amountCLP": "2333",
+    "amountUSD": "2.48",
+    "amountBRL": "14.62",
+    "date": "2025-05-24T21:38:03.908Z",
+    "status": "PENDIENTE",
+    "originalCurrency": "CLP",
+    "webhookUrl": "https://pix-gateway-dev2.onrender.com/api/webhook",
+    "userEmail": "mcaracci@gmail.com"
   }
 ]

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid'); // <-- ESTA LÍNEA DEBE ESTAR AQUÍ
 const router = express.Router();
-const rendixApi = require('../services/rendixApi'); // Importar el servicio de API
+const { createPixChargeLink } = require('../services/rendixApi');
 const fetch = require('node-fetch'); // npm install node-fetch
 
 // Ruta para procesar pagos PIX
@@ -87,16 +87,23 @@ router.post('/', async (req, res) => {
     // LOG del payload que se enviará a Renpix (QR)
     console.log('➡️ Payload enviado a Renpix (QR):', JSON.stringify(pixPayload, null, 2));
 
-    const pixResponse = await rendixApi.createPixChargeLink(pixPayload);
+    const { renpix_email, renpix_password } = req.user || req.body || {};
+    const pixCharge = await createPixChargeLink({
+      amountUSD,
+      customer,
+      controlNumber: transactionId,
+      renpix_email,
+      renpix_password
+    });
 
     // LOG de la respuesta de Renpix (QR)
-    console.log('⬅️ Respuesta de Renpix (QR):', JSON.stringify(pixResponse, null, 2));
+    console.log('⬅️ Respuesta de Renpix (QR):', JSON.stringify(pixCharge, null, 2));
     
     // Loguear todas las propiedades de la respuesta para debugging
-    if (pixResponse) {
+    if (pixCharge) {
       console.log('📊 Lista de todas las propiedades en la respuesta:');
-      Object.keys(pixResponse).forEach(key => {
-        console.log(`  - ${key}: ${JSON.stringify(pixResponse[key])}`);
+      Object.keys(pixCharge).forEach(key => {
+        console.log(`  - ${key}: ${JSON.stringify(pixCharge[key])}`);
       });
     }
     
@@ -105,19 +112,19 @@ router.post('/', async (req, res) => {
     let usdToBrlRate;
     
     // Intentar obtener la tasa desde diferentes propiedades posibles
-    if (pixResponse.exchangeRate) {
-      usdToBrlRate = pixResponse.exchangeRate;
+    if (pixCharge.exchangeRate) {
+      usdToBrlRate = pixCharge.exchangeRate;
       console.log('💲 Tasa encontrada en exchangeRate:', usdToBrlRate);
-    } else if (pixResponse.rate) {
-      usdToBrlRate = pixResponse.rate;
+    } else if (pixCharge.rate) {
+      usdToBrlRate = pixCharge.rate;
       console.log('💲 Tasa encontrada en rate:', usdToBrlRate);
-    } else if (pixResponse.vetTax) {
+    } else if (pixCharge.vetTax) {
       // Asegurarse de que es un numero
-      if (typeof pixResponse.vetTax === 'number') {
-        usdToBrlRate = pixResponse.vetTax;
-      } else if (typeof pixResponse.vetTax === 'string') {
+      if (typeof pixCharge.vetTax === 'number') {
+        usdToBrlRate = pixCharge.vetTax;
+      } else if (typeof pixCharge.vetTax === 'string') {
         // Intentar convertir a numero quitando % si existe
-        usdToBrlRate = parseFloat(pixResponse.vetTax.replace('%', ''));
+        usdToBrlRate = parseFloat(pixCharge.vetTax.replace('%', ''));
       }
       console.log('💲 Tasa encontrada en vetTax:', usdToBrlRate);
     } else {
@@ -148,8 +155,8 @@ router.post('/', async (req, res) => {
     }
     
     // Si la API ya proporciona el monto en BRL, usarlo en lugar del calculado
-    if (pixResponse.amount || pixResponse.amountBRL) {
-      const apiProvidedAmount = pixResponse.amount || pixResponse.amountBRL;
+    if (pixCharge.amount || pixCharge.amountBRL) {
+      const apiProvidedAmount = pixCharge.amount || pixCharge.amountBRL;
       if (!isNaN(parseFloat(apiProvidedAmount))) {
         amountBRL = parseFloat(apiProvidedAmount).toFixed(2);
         console.log('📊 Usando monto BRL proporcionado por la API:', amountBRL);
@@ -157,19 +164,19 @@ router.post('/', async (req, res) => {
     }
     
     // Verificar la disponibilidad de datos del QR
-    const qrCodeBase64 = pixResponse.qrCodeBase64 || pixResponse.qrCode || pixResponse.qrImage || pixResponse.qr || '';
-    const pixCopyPast = pixResponse.pixCopyPast || pixResponse.pixUrl || pixResponse.url || pixResponse.link || pixResponse.paymentLink || pixResponse.externalLink || '';
+    const qrCodeBase64 = pixCharge.qrCodeBase64 || pixCharge.qrCode || pixCharge.qrImage || pixCharge.qr || '';
+    const pixCopyPast = pixCharge.pixCopyPast || pixCharge.pixUrl || pixCharge.url || pixCharge.link || pixCharge.paymentLink || pixCharge.externalLink || '';
     
     // Loggear los datos de QR para debugging
     if (qrCodeBase64) {
-      console.log('✅ QR Code Base64 encontrado en:', Object.keys(pixResponse).find(key => pixResponse[key] === qrCodeBase64));
+      console.log('✅ QR Code Base64 encontrado en:', Object.keys(pixCharge).find(key => pixCharge[key] === qrCodeBase64));
       console.log('📏 Longitud del QR Code Base64:', qrCodeBase64.length);
     } else {
       console.error('⚠️ No se encontró QR Code Base64 en la respuesta de la API');
     }
     
     if (pixCopyPast) {
-      console.log('✅ Link de pago encontrado en:', Object.keys(pixResponse).find(key => pixResponse[key] === pixCopyPast));
+      console.log('✅ Link de pago encontrado en:', Object.keys(pixCharge).find(key => pixCharge[key] === pixCopyPast));
       console.log('📏 Longitud del link de pago:', pixCopyPast.length);
     } else {
       console.error('⚠️ No se encontró link de pago en la respuesta de la API');
@@ -217,12 +224,12 @@ router.post('/', async (req, res) => {
       amountBRL,
       rateCLPperUSD,
       vetTax: vetTaxFormatted, // Usar el formato correcto sin %
-      webhookUrl: pixResponse.webhookUrl || webhookUrl, // Incluir la URL del webhook en la respuesta
+      webhookUrl: pixCharge.webhookUrl || webhookUrl, // Incluir la URL del webhook en la respuesta
       qrData: {
         pixCopyPast: pixCopyPast || `https://example.com/pix/${transactionId}`,
         qrCodeBase64: qrCodeBase64 || '' // Si no hay QR, enviar cadena vacía
       },
-      expiresAt: pixResponse.expiresAt || new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 minutos de validez por defecto
+      expiresAt: pixCharge.expiresAt || new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 minutos de validez por defecto
     };
     
     // Si no hay QR o enlace de pago, añadir mensajes de advertencia

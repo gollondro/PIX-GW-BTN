@@ -40,9 +40,8 @@ router.post('/', (req, res) => {
     
     if (user) {
       console.log(`✅ Login exitoso para: ${email}`);
-      
-      // Mantener la estructura de respuesta compatible con la versión anterior
-      // pero añadir los nuevos campos con valores por defecto
+
+      // Respuesta con los campos requeridos
       const response = {
         success: true,
         email: user.email,
@@ -51,17 +50,15 @@ router.post('/', (req, res) => {
         merchant_id: user.merchant_id || process.env.RENPIX_MERCHANT_ID,
         requiereIdVentaTienda: user.requiereIdVentaTienda || false
       };
-      
-      // Añadir nuevos campos solo si están presentes en el usuario
+
+      // Añadir otros campos opcionales si existen
       if (user.name) response.userName = user.name;
       if (user.allowCLP !== undefined) response.allowCLP = user.allowCLP;
       if (user.allowUSD !== undefined) response.allowUSD = user.allowUSD;
       if (user.defaultCurrency) response.defaultCurrency = user.defaultCurrency;
-      
-      // Añadir configuración de métodos de pago
       if (user.allowQR !== undefined) response.allowQR = user.allowQR;
       if (user.allowLink !== undefined) response.allowLink = user.allowLink;
-      
+
       console.log('Respuesta de login:', response);
       res.json(response);
     } else {

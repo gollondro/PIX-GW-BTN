@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
-const rendixApi = require('../services/rendixApi'); // Importar el servicio de API
+const { createPaymentLink } = require('../services/rendixApi'); // Importar el servicio de API
 
 // Ruta para procesar enlaces de pago PIX
 router.post('/', async (req, res) => {
@@ -70,7 +70,14 @@ router.post('/', async (req, res) => {
       beneficiary: name
     };
     console.log('➡️ Payload enviado a Rendix (Link de Pago):', JSON.stringify(payload, null, 2));
-    const linkResponse = await rendixApi.createPaymentLink(payload);
+    const linkResponse = await createPaymentLink({
+      amountUSD,
+      customer,
+      controlNumber: transactionId,
+      description,
+      renpix_email: req.user?.renpix_email || req.body.renpix_email,
+      renpix_password: req.user?.renpix_password || req.body.renpix_password
+    });
     console.log('⬅️ Respuesta de Rendix (Link de Pago):', JSON.stringify(linkResponse, null, 2));
 
     const parsedUSD = parseFloat(amountUSD);
