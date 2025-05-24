@@ -112,6 +112,7 @@ function editarUsuario(idx) {
   document.getElementById('userAllowQR').checked = !!usuario.allowQR;
   document.getElementById('userAllowLink').checked = !!usuario.allowLink;
   document.getElementById('userTiendaActiva').checked = !!(usuario.ventaTiendaActiva || usuario.requiereIdVentaTienda);
+  document.getElementById('userOperationCode').value = usuario.operationCode || 1; // <-- Añadido
 
   // Abre el modal
   const modal = new bootstrap.Modal(document.getElementById('modalUsuario'));
@@ -147,12 +148,13 @@ document.getElementById('formUsuario').addEventListener('submit', async e => {
     password: document.getElementById('userPass').value,
     merchant_id: document.getElementById('userMerchant').value,
     ventaTiendaActiva: document.getElementById('userTiendaActiva').checked,
-    requiereIdVentaTienda: document.getElementById('userTiendaActiva').checked, // NUEVO
+    requiereIdVentaTienda: document.getElementById('userTiendaActiva').checked,
     allowCLP: document.getElementById('userAllowCLP').checked,
     allowUSD: document.getElementById('userAllowUSD').checked,
     defaultCurrency: document.getElementById('userDefaultCurrency').value,
     allowQR: document.getElementById('userAllowQR').checked,
-    allowLink: document.getElementById('userAllowLink').checked
+    allowLink: document.getElementById('userAllowLink').checked,
+    operationCode: parseInt(document.getElementById('userOperationCode').value) // <-- Añadido
   };
   
   debugLog(`Guardando usuario: ${usuario.email}`);

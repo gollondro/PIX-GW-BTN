@@ -62,7 +62,7 @@ function isTokenValid() {
   return tokenExpiry > new Date(Date.now() + 30 * 60 * 1000);
 }
 
-async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
+async function createPixChargeLink({ amountUSD, customer, controlNumber, operationCode = 1 }) {
   try {
     // Verificar si necesitamos obtener o renovar el token
     if (!isTokenValid()) {
@@ -88,7 +88,7 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
       throw new Error(`Monto inválido: ${amountUSD}`);
     }
 
-    // Construir el payload con el webhook explícito
+    // Construir el payload con operationCode recibido
     const payload = {
       merchantId: Number(process.env.RENPIX_MERCHANT_ID),
       purchase: purchase,
@@ -96,9 +96,9 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
       controlNumber: controlNumber,
       phone: customer.phone,
       email: customer.email,
-      webhook: process.env.RENPIX_WEBHOOK || "http://localhost:3000/api/webhook", // Usar URL por defecto si no está configurada
+      webhook: process.env.RENPIX_WEBHOOK || "http://localhost:3000/api/webhook",
       currencyCode: 'USD',
-      operationCode: 1,
+      operationCode: operationCode, // Usar operationCode recibido
       beneficiary: customer.name
     };
 
@@ -180,52 +180,8 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber }) {
 }
 
 // Nueva función para generar enlaces de pago vía API
-async function createPaymentLink({ amountUSD, customer, controlNumber, description }) {
-////
-
-return {
-  success: true,
-  id: response.data.data.id // 👈 este es el ID de la venta
-};
-
-btnGenerateLink.addEventListener('click', async () => {
-  const payload = {
-    amount: document.getElementById('amount').value,
-    name: document.getElementById('name').value,
-    email: document.getElementById('emailCliente').value,
-    phone: document.getElementById('phone').value,
-    cpf: document.getElementById('cpf').value,
-    description: 'Link de pago para ' + document.getElementById('name').value,
-    currency: currentCurrency,
-    userEmail: session.email
-  };
-
+async function createPaymentLink({ amountUSD, customer, controlNumber, description, operationCode = 1 }) {
   try {
-    const res = await fetch('/api/payment-link', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-
-    if (data.success && data.id) {
-      const linkUrl = `https://pagamento.rendix.com.br/link/${data.id}`;
-      document.getElementById('qrResult').innerHTML = `
-        <p><strong>ID de la venta:</strong> ${data.id}</p>
-        <p><strong>Link de pago:</strong> <a href="${linkUrl}" target="_blank">${linkUrl}</a></p>
-      `;
-    } else {
-      throw new Error('No se pudo obtener el ID del link');
-    }
-  } catch (err) {
-    document.getElementById('qrResult').innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
-  }
-});
-////// 
-
- try {
-    // Verificar si necesitamos obtener o renovar el token
     if (!isTokenValid()) {
       console.log('🔑 Token no disponible o próximo a expirar, obteniendo uno nuevo...');
       await authenticate();
@@ -249,7 +205,7 @@ btnGenerateLink.addEventListener('click', async () => {
       throw new Error(`Monto inválido: ${amountUSD}`);
     }
 
-    // Construir el payload para el enlace de pago
+    // Construir el payload para el enlace de pago con operationCode recibido
     const payload = {
       merchantId: Number(process.env.RENPIX_MERCHANT_ID),
       purchase: purchase,
@@ -258,7 +214,7 @@ btnGenerateLink.addEventListener('click', async () => {
       email: customer.email,
       UrlWebhook: process.env.RENPIX_WEBHOOK || "http://localhost:3000/api/webhook",
       currencyCode: 'USD',
-      operationCode: 1,
+      operationCode: operationCode, // Usar operationCode recibido
       beneficiary: customer.name
     };
 

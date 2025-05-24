@@ -55,6 +55,23 @@ router.post('/', async (req, res) => {
     const originalCurrency = currency || (amountCLP && !amountUSD ? 'CLP' : 'USD');
     const transactionId = uuidv4();
 
+    // --- Obtener operationCode del usuario ---
+    let operationCode = 1; // Valor por defecto
+    const usersFile = path.join(__dirname, '../db/users.json');
+    let user = null;
+    if (fs.existsSync(usersFile) && userEmail) {
+      try {
+        const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+        user = users.find(u => u.email === userEmail);
+        if (user && user.operationCode) {
+          operationCode = user.operationCode;
+        }
+      } catch (e) {
+        console.warn('No se pudo leer operationCode del usuario, usando valor por defecto');
+      }
+    }
+    // ----------------------------------------
+
     const customer = { name, email, phone, cpf };
     const webhookUrl = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
 
@@ -62,11 +79,11 @@ router.post('/', async (req, res) => {
       merchantId: 3111,
       purchase: Number(amount),
       description: `Link de pago para ${name}`,
-      controlNumber: transactionId, // <-- Usa el mismo ID
+      controlNumber: transactionId,
       email,
       UrlWebhook: webhookUrl,
       currencyCode: currency,
-      operationCode: 1,
+      operationCode: operationCode, // Usar el operationCode del usuario
       beneficiary: name
     };
     console.log('➡️ Payload enviado a Rendix (Link de Pago):', JSON.stringify(payload, null, 2));

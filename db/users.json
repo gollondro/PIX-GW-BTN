@@ -11,7 +11,8 @@
     "allowUSD": true,
     "defaultCurrency": "CLP",
     "allowQR": true,
-    "allowLink": true
+    "allowLink": true,
+      "operationCode": 1
   },
   {
     "email": "mcaracci@gmail.com",
@@ -25,7 +26,8 @@
     "allowUSD": false,
     "defaultCurrency": "CLP",
     "allowQR": true,
-    "allowLink": false
+    "allowLink": false,
+      "operationCode": 4
   },
   {
     "email": "dolar@afex.cl",
@@ -39,6 +41,7 @@
     "allowUSD": true,
     "defaultCurrency": "USD",
     "allowQR": false,
-    "allowLink": true
+    "allowLink": true,
+      "operationCode": 1
   }
 ]

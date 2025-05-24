@@ -48,7 +48,8 @@ router.post('/', (req, res) => {
         renpix_email: user.renpix_email || process.env.RENPIX_EMAIL,
         renpix_password: user.renpix_password || process.env.RENPIX_PASSWORD,
         merchant_id: user.merchant_id || process.env.RENPIX_MERCHANT_ID,
-        requiereIdVentaTienda: user.requiereIdVentaTienda || false
+        requiereIdVentaTienda: user.requiereIdVentaTienda || false,
+        operationCode: user.operationCode || 1 // <-- Añadido aquí
       };
 
       // Añadir otros campos opcionales si existen

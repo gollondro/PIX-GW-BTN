@@ -17,13 +17,20 @@ router.post('/', async (req, res) => {
     
     // Capturar información del usuario que genera la cotización
     const userEmail = req.body.userEmail;
-    
-    if (!name || !email || !phone || !cpf) {
-      console.error('❌ Campos obligatorios faltantes');
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Todos los campos son obligatorios' 
-      });
+
+    // Buscar el usuario para obtener su operationCode
+    const usersFile = path.join(__dirname, '../db/users.json');
+    let operationCode = 1; // Valor por defecto
+    if (fs.existsSync(usersFile) && userEmail) {
+      try {
+        const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+        const user = users.find(u => u.email === userEmail);
+        if (user && user.operationCode) {
+          operationCode = user.operationCode;
+        }
+      } catch (e) {
+        console.warn('No se pudo leer operationCode del usuario, usando valor por defecto');
+      }
     }
     
     // Manejar compatibilidad con el nuevo formato (donde se envia solo 'amount')
@@ -77,15 +84,22 @@ router.post('/', async (req, res) => {
     const customer = { name, email, phone, cpf };
     const webhookUrl = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
 
-    const pixPayload = {
-      amountUSD: parseFloat(amountUSD),
-      customer,
-      controlNumber: transactionId, // Usa el mismo ID
-      webhook: webhookUrl // o el nombre que requiera la API
+    // Construir el payload usando operationCode
+    const payload = {
+      merchantId: Number(process.env.RENPIX_MERCHANT_ID),
+      purchase: parseFloat(amountUSD),
+      cpf: cpf,
+      controlNumber: transactionId,
+      phone: phone,
+      email: email,
+      webhook: process.env.RENPIX_WEBHOOK || "http://localhost:3000/api/webhook",
+      currencyCode: 'USD',
+      operationCode: operationCode, // Usar el operationCode del usuario
+      beneficiary: name
     };
 
     // LOG del payload que se enviará a Renpix (QR)
-    console.log('➡️ Payload enviado a Renpix (QR):', JSON.stringify(pixPayload, null, 2));
+    console.log('➡️ Payload enviado a Renpix (QR):', JSON.stringify(payload, null, 2));
 
     const { renpix_email, renpix_password } = req.user || req.body || {};
     const pixCharge = await createPixChargeLink({
