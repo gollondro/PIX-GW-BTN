@@ -467,6 +467,89 @@
       document.body.removeChild(textArea);
       alert('Enlace de pago copiado al portapapeles');
     }
+
+    // Función para iniciar polling de estado de pago
+    function startPaymentPolling(transactionId) {
+      let pollingInterval = null;
+      let maxAttempts = 60; // Intentos cada 3 segundos = 3 minutos
+      let attempts = 0;
+
+      function stopPolling() {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+        }
+      }
+
+      pollingInterval = setInterval(async () => {
+        attempts++;
+
+        // Detener después de cierto número de intentos
+        if (attempts >= maxAttempts) {
+          stopPolling();
+          document.getElementById('paymentStatus').innerHTML = `
+            <div class="alert alert-warning">
+              <h4>⏰ Tiempo de espera agotado</h4>
+              <p>No se pudo confirmar el pago. Por favor, verifique su transacción.</p>
+            </div>
+          `;
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/payment/status/${transactionId}`);
+          const result = await response.json();
+
+          if (result.paid) {
+            stopPolling();
+
+            // Mostrar confirmación
+            document.getElementById('paymentStatus').innerHTML = `
+              <div class="alert alert-success">
+                <h4>✅ Pago confirmado</h4>
+                <p>Su pago ha sido procesado exitosamente.</p>
+                <hr>
+                <b>Monto:</b> ${result.data.amountUSD} USD<br>
+                <b>Fecha:</b> ${result.data.paid_at || new Date().toLocaleString()}<br>
+                <b>Cliente:</b> ${result.data.name || 'N/A'}<br>
+                <b>Email:</b> ${result.data.email || 'N/A'}
+              </div>
+            `;
+
+            // Notificar a la ventana padre (si está en un popup)
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'PAYMENT_SUCCESS', 
+                transactionId: transactionId,
+                data: result.data 
+              }, '*');
+            }
+          }
+        } catch (error) {
+          console.error('Error en polling:', error);
+        }
+      }, 3000); // Cada 3 segundos
+    }
+
+    // Añadir elemento para mostrar estado del pago
+    function setupPaymentStatusElement() {
+      const container = document.querySelector('.payment-body');
+      const statusDiv = document.createElement('div');
+      statusDiv.id = 'paymentStatus';
+      statusDiv.className = 'mt-3';
+      container.appendChild(statusDiv);
+    }
+
+    // Modificar el script de carga de transacción para añadir polling
+    document.addEventListener('DOMContentLoaded', () => {
+      const pathParts = window.location.pathname.split('/');
+      const transactionId = pathParts[pathParts.length - 1];
+
+      setupPaymentStatusElement();
+
+      if (transactionId) {
+        startPaymentPolling(transactionId);
+      }
+    });
   </script>
 </body>
 </html>

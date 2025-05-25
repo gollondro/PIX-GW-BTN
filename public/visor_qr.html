@@ -112,6 +112,9 @@
         </button>
         </div>
       </div>
+
+      <!-- Payment Status Section -->
+      <div id="paymentStatus" class="mt-3"></div>
     </div>
   </div>
 
@@ -177,7 +180,87 @@
       }
     }
 
-    // Función para mostrar detalles de la transacción
+    // Función para iniciar polling de estado de pago
+    function startPaymentPolling(transaction) {
+      const transactionId = transaction.internalId || transaction.transactionId;
+      let pollingInterval = null;
+      let maxAttempts = 60; // Intentos cada 3 segundos = 3 minutos
+      let attempts = 0;
+
+      function stopPolling() {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+        }
+      }
+
+      pollingInterval = setInterval(async () => {
+        attempts++;
+
+        // Detener después de cierto número de intentos
+        if (attempts >= maxAttempts) {
+          stopPolling();
+          document.getElementById('paymentStatus').innerHTML = `
+            <div class="alert alert-warning">
+              <h4>⏰ Tiempo de espera agotado</h4>
+              <p>No se pudo confirmar el pago. Por favor, verifique su transacción.</p>
+            </div>
+          `;
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/payment/status/${transactionId}`);
+          const result = await response.json();
+
+          if (result.paid) {
+            stopPolling();
+
+            // Mostrar confirmación
+            document.getElementById('paymentStatus').innerHTML = `
+              <div class="alert alert-success">
+                <h4>✅ Pago confirmado</h4>
+                <p>Su pago ha sido procesado exitosamente.</p>
+                <hr>
+                <b>Monto:</b> ${result.data.amountUSD} USD<br>
+                <b>Fecha:</b> ${result.data.paid_at || new Date().toLocaleString()}<br>
+                <b>Cliente:</b> ${result.data.name || 'N/A'}<br>
+                <b>Email:</b> ${result.data.email || 'N/A'}
+              </div>
+            `;
+
+            // Actualizar los detalles visuales
+            updateTransactionDetailsAfterPayment(result.data);
+          }
+        } catch (error) {
+          console.error('Error en polling:', error);
+        }
+      }, 3000); // Cada 3 segundos
+    }
+
+    // Función para actualizar detalles visuales después del pago
+    function updateTransactionDetailsAfterPayment(paymentData) {
+      // Ocultar detalles previos si es necesario
+      const qrCodeImage = document.getElementById('qrCodeImage');
+      if (qrCodeImage) qrCodeImage.style.display = 'none';
+
+      // Actualizar algunos detalles de pago si es relevante
+      if (paymentData.paid_at) {
+        document.getElementById('customerName').textContent = paymentData.name || 'N/A';
+        document.getElementById('customerEmail').textContent = paymentData.email || 'N/A';
+        document.getElementById('amountUSD').textContent = paymentData.amountUSD + ' USD';
+      }
+    }
+
+    // Añadir elemento para mostrar estado del pago
+    function setupPaymentStatusElement() {
+      const container = document.getElementById('transactionDetails');
+      const statusDiv = document.createElement('div');
+      statusDiv.id = 'paymentStatus';
+      statusDiv.className = 'mt-3';
+      container.appendChild(statusDiv);
+    }
+
+    // Modificar la función de mostrar detalles para añadir polling automático
     function displayTransactionDetails(transaction) {
       if (!transaction) {
         alert('No se encontraron transacciones para este usuario');
@@ -214,6 +297,12 @@
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('updateSection').style.display = 'none';
       document.getElementById('transactionDetails').style.display = 'block';
+
+      // Añadir elemento de estado de pago
+      setupPaymentStatusElement();
+
+      // Iniciar polling
+      startPaymentPolling(transaction);
 
       return true;
     }
