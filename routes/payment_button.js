@@ -37,7 +37,7 @@ function extractUserEmail(req) {
   return validEmail;
 }
 
-// Función para obtener la última transacción de un usuario con más logging detallado
+// Función para obtener la última transacción de un usuario con logging detallado e insensible a mayúsculas/minúsculas
 function getLatestTransactionForUser(userEmail) {
   console.log(`🔍 Buscando última transacción para email: ${userEmail}`);
   
@@ -54,10 +54,10 @@ function getLatestTransactionForUser(userEmail) {
     
     console.log('📊 Total de transacciones:', transactions.length);
     
-    // Filtrar y loguear transacciones del usuario
+    // Filtrar transacciones del usuario sin considerar mayúsculas/minúsculas y espacios
     const userTransactions = transactions.filter(t => {
-      const match = t.userEmail && 
-        t.userEmail.toLowerCase() === userEmail.toLowerCase();
+      const match = t.userEmail &&
+        t.userEmail.trim().toLowerCase() === userEmail.trim().toLowerCase();
       
       if (match) {
         console.log('🎯 Transacción encontrada:', {
@@ -71,7 +71,7 @@ function getLatestTransactionForUser(userEmail) {
       return match;
     });
 
-    // Ordenar por fecha de creación
+    // Ordenar por fecha de creación, más reciente primero
     const sortedTransactions = userTransactions.sort((a, b) => 
       new Date(b.createdAt) - new Date(a.createdAt)
     );
@@ -96,39 +96,14 @@ function getLatestTransactionForUser(userEmail) {
 // Nuevo endpoint para obtener la última transacción de un usuario
 router.get('/latest-transaction', (req, res) => {
   const userEmail = req.query.userEmail;
-
-  console.log(`🔎 Solicitud de última transacción para: ${userEmail}`);
-
-  // Validar que se proporcione un email
   if (!userEmail) {
-    return res.status(400).json({
-      success: false,
-      error: 'Se requiere un email de usuario'
-    });
+    return res.status(400).json({ success: false, error: 'Se requiere un email de usuario' });
   }
-
-  try {
-    // Buscar la última transacción
-    const latestTransaction = getLatestTransactionForUser(userEmail);
-
-    if (latestTransaction) {
-      res.json({
-        success: true,
-        transaction: latestTransaction
-      });
-    } else {
-      console.warn(`⚠️ No se encontró transacción para ${userEmail}`);
-      res.json({
-        success: false,
-        error: 'No se encontraron transacciones para este usuario'
-      });
-    }
-  } catch (error) {
-    console.error('❌ Error al obtener última transacción:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error interno del servidor'
-    });
+  const latestTransaction = getLatestTransactionForUser(userEmail);
+  if (latestTransaction) {
+    res.json({ success: true, transaction: latestTransaction });
+  } else {
+    res.json({ success: false, error: 'No se encontraron transacciones para este usuario' });
   }
 });
 

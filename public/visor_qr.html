@@ -220,42 +220,46 @@
 
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
-      
+
       const email = document.getElementById('loginEmail').value;
       const password = document.getElementById('loginPassword').value;
-      
+
       if (!email || !password) {
         alert('Por favor, complete todos los campos');
         return;
       }
-      
+
       try {
         const response = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
-        
+
+        // Verifica el status antes de parsear JSON
+        if (!response.ok) {
+          throw new Error('Respuesta HTTP no OK: ' + response.status);
+        }
+
         const data = await response.json();
-        
+
         // Mostrar información de depuración
         document.getElementById('debugContent').textContent = JSON.stringify(data, null, 2);
-        
+
         if (data.success) {
           // Guardar usuario actual
           SessionManager.setCurrentUser(email);
 
-          // Intentar recuperar la última transacción
-          const latestTransaction = await fetchLatestTransactionForUser(email);
-          
-          if (latestTransaction) {
-            // Mostrar detalles de la transacción
-            if (displayTransactionDetails(latestTransaction)) {
+          // Obtener la última transacción del usuario usando el endpoint backend
+          const txResponse = await fetch(`/api/payment-button/latest-transaction?userEmail=${encodeURIComponent(email)}`);
+          const txData = await txResponse.json();
+
+          if (txData.success && txData.transaction) {
+            if (displayTransactionDetails(txData.transaction)) {
               return;
             }
           }
-          
-          // Si no hay transacciones, mostrar sección de actualización
+
           document.getElementById('loginSection').style.display = 'none';
           document.getElementById('updateSection').style.display = 'block';
         } else {
@@ -263,7 +267,7 @@
         }
       } catch (error) {
         console.error('Error:', error);
-        alert('Error de conexión');
+        alert('Error de conexión o de formato de respuesta');
       }
     });
 
