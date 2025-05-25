@@ -172,6 +172,20 @@
             </button>
           </div>
         </div>
+
+        <!-- Visor QR Section -->
+        <div id="qrViewerSection" class="mt-4 text-center">
+          <h6 class="text-afex mb-3">🔍 Compartir Datos de Transacción</h6>
+          <div class="input-group mb-3">
+            <input type="text" id="qrViewerLink" class="form-control" placeholder="URL del Visor QR" readonly>
+            <button class="btn btn-secondary" type="button" onclick="copyViewerLink()">Copiar</button>
+          </div>
+          <button class="btn btn-success w-100 mb-2" onclick="shareQRData()">Actualizar datos para visor QR</button>
+          <p class="text-muted small">
+            Comparte este enlace con quien desees que visualice los datos de la transacción.<br>
+            Haz clic en "Actualizar datos para visor QR" antes de abrir el visor.
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -187,6 +201,7 @@
     let pollingInterval = null;
     let countdownInterval = null;
     let expiresAt = null;
+    let transactionData = null;
 
     // Obtener ID de la transacción de la URL
     const pathParts = window.location.pathname.split('/');
@@ -205,17 +220,26 @@
         const data = await response.json();
 
         if (!data.success) {
-          throw new Error(data.error || 'Error al cargar datos');
+          throw new Error(data.error || 'Error al cargar datos de la transacción');
         }
 
+        // Guardar datos de la transacción para compartir
+        transactionData = data.transaction;
+
         // Mostrar datos de la transacción
-        displayPaymentData(data.transaction);
+        displayPaymentData(transactionData);
 
         // Generar QR dinámicamente
-        await generateQRCode(data.transaction);
+        await generateQRCode(transactionData);
 
-        // Iniciar polling
+        // Añadir botón para compartir datos del QR
+        addShareQRButton();
+
+        // Iniciar polling de estado de pago
         startPolling();
+
+        // Configurar enlace de visor QR
+        setupQRViewerLink();
 
       } catch (error) {
         console.error('Error loading payment data:', error);
@@ -223,13 +247,62 @@
       }
     }
 
+    function addShareQRButton() {
+      const paymentBody = document.querySelector('.payment-body');
+      const shareButton = document.createElement('button');
+      shareButton.className = 'btn btn-success mt-3 w-100';
+      shareButton.textContent = 'Enviar datos a Visor QR';
+      shareButton.addEventListener('click', shareQRData);
+      paymentBody.appendChild(shareButton);
+    }
+
+    function setupQRViewerLink() {
+      // Generar un enlace único para compartir
+      const qrViewerLink = document.getElementById('qrViewerLink');
+      qrViewerLink.value = `${window.location.origin}/visor_qr.html`;
+    }
+
+    function copyViewerLink() {
+      const qrViewerLink = document.getElementById('qrViewerLink');
+      qrViewerLink.select();
+      document.execCommand('copy');
+      // Mostrar mensaje temporal de copiado
+      const originalText = qrViewerLink.value;
+      qrViewerLink.value = '¡Enlace copiado!';
+      setTimeout(() => {
+        qrViewerLink.value = originalText;
+      }, 2000);
+    }
+
+    function shareQRData() {
+      if (!transactionData) {
+        alert('Datos de transacción no disponibles');
+        return;
+      }
+
+      // Preparar datos para compartir
+      const shareData = {
+        userEmail: transactionData.userEmail,
+        amountUSD: transactionData.amountUSD,
+        transactionId: transactionId,
+        customerName: transactionData.customer.name,
+        customerEmail: transactionData.customer.email,
+        customerPhone: transactionData.customer.phone,
+        customerCpf: transactionData.customer.cpf,
+        qrCodeBase64: transactionData.qrData?.qrCodeBase64 || '',
+        pixCopyPast: transactionData.qrData?.pixCopyPast || ''
+      };
+
+      // Almacenar en localStorage para que el visor QR pueda acceder
+      localStorage.setItem('sharedTransactionData', JSON.stringify(shareData));
+      alert('Datos actualizados para el visor QR.');
+    }
+
     async function generateQRCode(transaction) {
       const pixQrContainer = document.getElementById('pixQrContainer');
       const pixQrImg = document.getElementById('pixQrImg');
       const pixCode = document.getElementById('pixCode');
       const loadingQR = document.getElementById('loadingQR');
-      const paymentLinkSection = document.getElementById('paymentLinkSection');
-      const paymentLink = document.getElementById('paymentLink');
 
       // 1. Si ya hay QR en la transacción, úsalo
       if (transaction.qrData && transaction.qrData.qrCodeBase64) {
@@ -276,7 +349,8 @@
       const amountUSD = Number(transaction.amountUSD) || 0;
       const amountBRL = Number(transaction.amountBRL ?? transaction.priceNationalCurrency) || 0;
       const usdToBrlRate = Number(transaction.usdToBrlRate ?? transaction.vetTax) || 0;
-      const expiresAtValue = transaction.expiresAt ?? transaction.qrCodeExpiration;
+      const expiresAtValue = transaction.expiresAt ?? transaction.qrCodeExpiration ?? 
+        new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutos por defecto
 
       document.getElementById('customerName').textContent = transaction.customer.name || '-';
       document.getElementById('customerEmail').textContent = transaction.customer.email || '-';
@@ -288,11 +362,9 @@
       document.getElementById('paymentSection').style.display = 'block';
       document.getElementById('loadingSection').style.display = 'none';
 
-      // Iniciar cuenta regresiva si hay expiresAt
-      if (expiresAtValue) {
-        expiresAt = new Date(expiresAtValue);
-        startCountdown();
-      }
+      // Iniciar cuenta regresiva
+      expiresAt = new Date(expiresAtValue);
+      startCountdown();
     }
 
     function formatCurrency(amount, currency) {
@@ -307,24 +379,72 @@
     }
 
     function startPolling() {
-      // Lógica de polling para actualizar estado de pago
+      // Iniciar polling para verificar estado de pago
+      pollingInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/payment/status/${transactionId}`);
+          const result = await response.json();
+
+          if (result.paid) {
+            // Detener polling
+            clearInterval(pollingInterval);
+            clearInterval(countdownInterval);
+            
+            // Mostrar mensaje de pago confirmado
+            const paymentSection = document.getElementById('paymentSection');
+            paymentSection.innerHTML = `
+              <div class="alert alert-success text-center">
+                <h4>✅ ¡Pago recibido!</h4>
+                <p>El pago fue confirmado correctamente.</p>
+                <hr>
+                <b>Fecha:</b> ${result.data.paid_at || ''}<br>
+                <b>Cliente:</b> ${result.data.name || ''}<br>
+                <b>Email:</b> ${result.data.email || ''}<br>
+              </div>
+            `;
+
+            // Ocultar contador global
+            document.getElementById('globalCountdown').style.display = 'none';
+          }
+        } catch (error) {
+          console.error('Error en polling:', error);
+          // Detener polling en caso de error
+          clearInterval(pollingInterval);
+        }
+      }, 3000); // Cada 3 segundos
     }
 
     function startCountdown() {
+      const countdown = document.getElementById('globalCountdown');
       clearInterval(countdownInterval);
+
       countdownInterval = setInterval(() => {
         const now = new Date();
         const diff = expiresAt - now;
-        const countdown = document.getElementById('globalCountdown');
+
         if (diff <= 0) {
           countdown.textContent = 'El tiempo para completar el pago ha expirado.';
           countdown.classList.add('danger');
           clearInterval(countdownInterval);
+          clearInterval(pollingInterval);
+          
+          // Mostrar mensaje de expiración
+          const paymentSection = document.getElementById('paymentSection');
+          paymentSection.innerHTML = `
+            <div class="alert alert-warning text-center">
+              <h4>⏰ Tiempo de pago expirado</h4>
+              <p>El código QR ha caducado. Por favor, genere un nuevo código de pago.</p>
+            </div>
+          `;
           return;
         }
+
         const minutes = Math.floor(diff / 60000);
         const seconds = Math.floor((diff % 60000) / 1000);
+        
         countdown.textContent = `Tiempo restante para completar el pago: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Cambiar estilo según el tiempo restante
         if (diff < 60000) {
           countdown.classList.add('danger');
           countdown.classList.remove('warning');

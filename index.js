@@ -29,6 +29,10 @@ app.get('/payment-window/:transactionId', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'payment_window_html.html'));
 });
 
+app.get('/visor_qr.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'visor_qr.html'));
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);

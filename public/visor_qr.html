@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visor QR - Transacciones PIX</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { 
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .login-container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    .visor-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    #transactionDetails {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Login Section -->
+    <div id="loginSection" class="login-container">
+      <h3 class="text-center mb-4">Visor QR - Login</h3>
+      <form id="loginForm">
+        <div class="mb-3">
+          <label for="loginEmail" class="form-label">Email</label>
+          <input type="email" class="form-control" id="loginEmail" required>
+        </div>
+        <div class="mb-3">
+          <label for="loginPassword" class="form-label">Contraseña</label>
+          <input type="password" class="form-control" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
+      </form>
+    </div>
+
+    <!-- Update Section -->
+    <div id="updateSection" class="login-container" style="display:none;">
+      <h3 class="text-center mb-4">Actualizar Datos</h3>
+      <div class="text-center">
+        <button id="updateButton" class="btn btn-success btn-lg">
+          🔄 Actualizar Datos de Transacción
+        </button>
+      </div>
+    </div>
+
+    <!-- Transaction Viewer Section -->
+    <div id="transactionDetails" class="visor-container">
+      <h3 class="text-center mb-4">Detalles de la Transacción</h3>
+      <div class="row">
+        <div class="col-md-6">
+          <h5>Información del Comercio</h5>
+          <p><strong>Email:</strong> <span id="userEmail"></span></p>
+        </div>
+        <div class="col-md-6">
+          <h5>Detalles de la Transacción</h5>
+          <p><strong>Monto USD:</strong> <span id="amountUSD"></span></p>
+          <p><strong>ID Transacción:</strong> <span id="transactionId"></span></p>
+        </div>
+      </div>
+
+      <div class="row mt-4">
+        <div class="col-md-6">
+          <h5>Información del Cliente</h5>
+          <p><strong>Nombre:</strong> <span id="customerName"></span></p>
+          <p><strong>Email:</strong> <span id="customerEmail"></span></p>
+          <p><strong>Teléfono:</strong> <span id="customerPhone"></span></p>
+          <p><strong>CPF:</strong> <span id="customerCpf"></span></p>
+        </div>
+        <div class="col-md-6">
+          <h5>Información del QR</h5>
+          <img id="qrCodeImage" src="" alt="QR Code" class="img-fluid" style="max-height: 250px;">
+          <p class="mt-2">
+            <strong>Código PIX:</strong> 
+            <span id="pixCode" style="word-break: break-all;"></span>
+          </p>
+         <button id="updateButtonDetail" class="btn btn-success btn-lg">
+          🔄 Actualizar Datos de Transacción
+        </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      if (!email || !password) {
+        alert('Por favor, complete todos los campos');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Verificar que el email del usuario coincida con el de la transacción
+          const transactionData = JSON.parse(localStorage.getItem('sharedTransactionData') || '{}');
+          
+          // Validar que el email del usuario coincida con el email del comercio de la transacción
+          if (transactionData.userEmail !== email) {
+            alert('No tiene permiso para ver esta transacción');
+            return;
+          }
+
+          // Si el login es exitoso, mostrar la sección de detalles
+          document.getElementById('loginSection').style.display = 'none';
+          document.getElementById('updateSection').style.display = 'block';
+        } else {
+          alert(data.error || 'Credenciales inválidas');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+      }
+    });
+
+    // Evento de actualización de datos
+    document.getElementById('updateButton').addEventListener('click', async function() {
+      // Verificar que tengamos datos de transacción
+      const transactionData = JSON.parse(localStorage.getItem('sharedTransactionData') || '{}');
+      if (!transactionData || !transactionData.transactionId) {
+        alert('No hay datos de transacción disponibles');
+        return;
+      }
+
+      try {
+        // Obtener datos actualizados desde el backend
+        const response = await fetch(`/api/payment-button/transaction/${transactionData.transactionId}`);
+        const result = await response.json();
+
+        if (result.success) {
+          // Actualizar datos de transacción
+          const updatedTransaction = result.transaction;
+
+          // Mostrar detalles actualizados
+          document.getElementById('userEmail').textContent = updatedTransaction.userEmail || 'N/A';
+          document.getElementById('amountUSD').textContent = updatedTransaction.amountUSD || 'N/A';
+          document.getElementById('transactionId').textContent = updatedTransaction.id || 'N/A';
+          
+          document.getElementById('customerName').textContent = updatedTransaction.customer.name || 'N/A';
+          document.getElementById('customerEmail').textContent = updatedTransaction.customer.email || 'N/A';
+          document.getElementById('customerPhone').textContent = updatedTransaction.customer.phone || 'N/A';
+          document.getElementById('customerCpf').textContent = updatedTransaction.customer.cpf || 'N/A';
+          
+          // Actualizar imagen QR si está disponible
+          const qrCodeImage = document.getElementById('qrCodeImage');
+          const pixCode = document.getElementById('pixCode');
+          
+          if (updatedTransaction.qrData && updatedTransaction.qrData.qrCodeBase64) {
+            qrCodeImage.src = `data:image/png;base64,${updatedTransaction.qrData.qrCodeBase64}`;
+          }
+          
+          pixCode.textContent = updatedTransaction.qrData?.pixCopyPast || 'N/A';
+
+          // Mostrar sección de detalles
+          document.getElementById('updateSection').style.display = 'none';
+          document.getElementById('transactionDetails').style.display = 'block';
+
+          // Actualizar datos en localStorage
+          localStorage.setItem('sharedTransactionData', JSON.stringify(updatedTransaction));
+
+          alert('Datos actualizados correctamente');
+        } else {
+          alert('No se pudieron obtener los datos actualizados');
+        }
+      } catch (error) {
+        console.error('Error al actualizar:', error);
+        alert('Error al actualizar los datos');
+      }
+    });
+
+    document.getElementById('updateButtonDetail').addEventListener('click', async function() {
+      // Puedes reutilizar la misma lógica que ya tienes para actualizar
+      const transactionData = JSON.parse(localStorage.getItem('sharedTransactionData') || '{}');
+      if (!transactionData || !transactionData.transactionId) {
+        alert('No hay datos de transacción disponibles');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/payment-button/transaction/${transactionData.transactionId}`);
+        const result = await response.json();
+
+        if (result.success) {
+          const updatedTransaction = result.transaction;
+
+          document.getElementById('userEmail').textContent = updatedTransaction.userEmail || 'N/A';
+          document.getElementById('amountUSD').textContent = updatedTransaction.amountUSD || 'N/A';
+          document.getElementById('transactionId').textContent = updatedTransaction.id || 'N/A';
+          document.getElementById('customerName').textContent = updatedTransaction.customer.name || 'N/A';
+          document.getElementById('customerEmail').textContent = updatedTransaction.customer.email || 'N/A';
+          document.getElementById('customerPhone').textContent = updatedTransaction.customer.phone || 'N/A';
+          document.getElementById('customerCpf').textContent = updatedTransaction.customer.cpf || 'N/A';
+
+          const qrCodeImage = document.getElementById('qrCodeImage');
+          const pixCode = document.getElementById('pixCode');
+          if (updatedTransaction.qrData && updatedTransaction.qrData.qrCodeBase64) {
+            qrCodeImage.src = `data:image/png;base64,${updatedTransaction.qrData.qrCodeBase64}`;
+          }
+          pixCode.textContent = updatedTransaction.qrData?.pixCopyPast || 'N/A';
+
+          localStorage.setItem('sharedTransactionData', JSON.stringify(updatedTransaction));
+          alert('Datos actualizados correctamente');
+        } else {
+          alert('No se pudieron obtener los datos actualizados');
+        }
+      } catch (error) {
+        console.error('Error al actualizar:', error);
+        alert('Error al actualizar los datos');
+      }
+    });
+  </script>
+</body>
+</html>

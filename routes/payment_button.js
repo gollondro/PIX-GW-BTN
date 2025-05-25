@@ -48,18 +48,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-let pendingTransactions = [];
-const pendingFile = path.join(__dirname, '../db/pending.json');
-if (fs.existsSync(pendingFile)) {
-  try {
-    pendingTransactions = JSON.parse(fs.readFileSync(pendingFile, 'utf8'));
-  } catch (e) {
-    console.error('❌ Error al leer el archivo de transacciones pendientes:', e);
-    // Opcional: Renombra el archivo corrupto para no perderlo
-    fs.renameSync(pendingFile, pendingFile + '.bak');
-    pendingTransactions = [];
-  }
-}
+
 
 fs.writeFileSync(pendingFile, JSON.stringify(pendingTransactions, null, 2));
 
