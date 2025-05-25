@@ -32,6 +32,14 @@
     #transactionDetails {
       display: none;
     }
+    .debug-info {
+      background-color: #f4f4f4;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-top: 15px;
+      word-break: break-all;
+      font-size: 0.8em;
+    }
   </style>
 </head>
 <body>
@@ -50,11 +58,18 @@
         </div>
         <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
       </form>
+      
+      <!-- Debug Section -->
+      <div id="debugInfo" class="debug-info">
+        <h5>Información de Depuración</h5>
+        <pre id="debugContent"></pre>
+        <div id="storageDebug"></div>
+      </div>
     </div>
 
     <!-- Update Section -->
     <div id="updateSection" class="login-container" style="display:none;">
-      <h3 class="text-center mb-4">Actualizar Datos</h3>
+      <h3 class="text-center mb-4">Última Transacción</h3>
       <div class="text-center">
         <button id="updateButton" class="btn btn-success btn-lg">
           🔄 Actualizar Datos de Transacción
@@ -102,6 +117,107 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    // Objeto para gestionar la sesión y transacciones
+    const SessionManager = {
+      // Guardar email de usuario
+      setCurrentUser: function(email) {
+        console.log('🔐 Guardando usuario actual:', email);
+        sessionStorage.setItem('currentUserEmail', email);
+        localStorage.setItem('currentUserEmail', email);
+      },
+
+      // Obtener email de usuario
+      getCurrentUser: function() {
+        // Intentar obtener de sessionStorage primero
+        let email = sessionStorage.getItem('currentUserEmail');
+        
+        // Si no está en sessionStorage, intentar localStorage
+        if (!email) {
+          email = localStorage.getItem('currentUserEmail');
+          
+          // Si lo encontramos en localStorage, guardarlo en sessionStorage
+          if (email) {
+            sessionStorage.setItem('currentUserEmail', email);
+          }
+        }
+
+        console.log('🔍 Usuario actual recuperado:', email);
+        return email;
+      },
+
+      // Limpiar sesión
+      clearSession: function() {
+        console.log('🚪 Limpiando sesión');
+        sessionStorage.removeItem('currentUserEmail');
+        localStorage.removeItem('currentUserEmail');
+      }
+    };
+
+    // Función para obtener la última transacción de un usuario
+    async function fetchLatestTransactionForUser(userEmail) {
+      try {
+        console.log(`🔍 Buscando última transacción para: ${userEmail}`);
+        const response = await fetch(`/api/payment-button/latest-transaction?userEmail=${encodeURIComponent(userEmail)}`);
+        const result = await response.json();
+
+        console.log('📦 Respuesta de última transacción:', result);
+
+        if (result.success && result.transaction) {
+          // Guardar en localStorage para persistencia entre dispositivos
+          localStorage.setItem(`latestTransaction_${userEmail}`, JSON.stringify(result.transaction));
+          
+          return result.transaction;
+        } else {
+          console.warn('⚠️ No se encontró transacción para el usuario');
+          return null;
+        }
+      } catch (error) {
+        console.error('❌ Error al buscar última transacción:', error);
+        return null;
+      }
+    }
+
+    // Función para mostrar detalles de la transacción
+    function displayTransactionDetails(transaction) {
+      if (!transaction) {
+        alert('No se encontraron transacciones para este usuario');
+        return false;
+      }
+
+      // Mostrar detalles en la interfaz
+      document.getElementById('userEmail').textContent = transaction.userEmail || 'N/A';
+      document.getElementById('amountUSD').textContent = transaction.amountUSD || 'N/A';
+      document.getElementById('transactionId').textContent = transaction.internalId || transaction.id || 'N/A';
+      
+      // Detalles del cliente
+      const customer = transaction.customer || {};
+      document.getElementById('customerName').textContent = customer.name || 'N/A';
+      document.getElementById('customerEmail').textContent = customer.email || 'N/A';
+      document.getElementById('customerPhone').textContent = customer.phone || 'N/A';
+      document.getElementById('customerCpf').textContent = customer.cpf || 'N/A';
+      
+      // Información del QR
+      const qrData = transaction.qrData || {};
+      const qrCodeImage = document.getElementById('qrCodeImage');
+      const pixCode = document.getElementById('pixCode');
+      
+      if (qrData.qrCodeBase64) {
+        qrCodeImage.src = `data:image/png;base64,${qrData.qrCodeBase64}`;
+        qrCodeImage.style.display = 'block';
+      } else {
+        qrCodeImage.style.display = 'none';
+      }
+      
+      pixCode.textContent = qrData.pixCopyPast || 'N/A';
+
+      // Mostrar secciones
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('updateSection').style.display = 'none';
+      document.getElementById('transactionDetails').style.display = 'block';
+
+      return true;
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       
@@ -122,17 +238,24 @@
         
         const data = await response.json();
         
+        // Mostrar información de depuración
+        document.getElementById('debugContent').textContent = JSON.stringify(data, null, 2);
+        
         if (data.success) {
-          // Verificar que el email del usuario coincida con el de la transacción
-          const transactionData = JSON.parse(localStorage.getItem('sharedTransactionData') || '{}');
-          
-          // Validar que el email del usuario coincida con el email del comercio de la transacción
-          if (transactionData.userEmail !== email) {
-            alert('No tiene permiso para ver esta transacción');
-            return;
-          }
+          // Guardar usuario actual
+          SessionManager.setCurrentUser(email);
 
-          // Si el login es exitoso, mostrar la sección de detalles
+          // Intentar recuperar la última transacción
+          const latestTransaction = await fetchLatestTransactionForUser(email);
+          
+          if (latestTransaction) {
+            // Mostrar detalles de la transacción
+            if (displayTransactionDetails(latestTransaction)) {
+              return;
+            }
+          }
+          
+          // Si no hay transacciones, mostrar sección de actualización
           document.getElementById('loginSection').style.display = 'none';
           document.getElementById('updateSection').style.display = 'block';
         } else {
@@ -144,99 +267,75 @@
       }
     });
 
-    // Evento de actualización de datos
-    document.getElementById('updateButton').addEventListener('click', async function() {
-      // Verificar que tengamos datos de transacción
-      const transactionData = JSON.parse(localStorage.getItem('sharedTransactionData') || '{}');
-      if (!transactionData || !transactionData.transactionId) {
-        alert('No hay datos de transacción disponibles');
-        return;
-      }
-
-      try {
-        // Obtener datos actualizados desde el backend
-        const response = await fetch(`/api/payment-button/transaction/${transactionData.transactionId}`);
-        const result = await response.json();
-
-        if (result.success) {
-          // Actualizar datos de transacción
-          const updatedTransaction = result.transaction;
-
-          // Mostrar detalles actualizados
-          document.getElementById('userEmail').textContent = updatedTransaction.userEmail || 'N/A';
-          document.getElementById('amountUSD').textContent = updatedTransaction.amountUSD || 'N/A';
-          document.getElementById('transactionId').textContent = updatedTransaction.id || 'N/A';
-          
-          document.getElementById('customerName').textContent = updatedTransaction.customer.name || 'N/A';
-          document.getElementById('customerEmail').textContent = updatedTransaction.customer.email || 'N/A';
-          document.getElementById('customerPhone').textContent = updatedTransaction.customer.phone || 'N/A';
-          document.getElementById('customerCpf').textContent = updatedTransaction.customer.cpf || 'N/A';
-          
-          // Actualizar imagen QR si está disponible
-          const qrCodeImage = document.getElementById('qrCodeImage');
-          const pixCode = document.getElementById('pixCode');
-          
-          if (updatedTransaction.qrData && updatedTransaction.qrData.qrCodeBase64) {
-            qrCodeImage.src = `data:image/png;base64,${updatedTransaction.qrData.qrCodeBase64}`;
-          }
-          
-          pixCode.textContent = updatedTransaction.qrData?.pixCopyPast || 'N/A';
-
-          // Mostrar sección de detalles
-          document.getElementById('updateSection').style.display = 'none';
-          document.getElementById('transactionDetails').style.display = 'block';
-
-          // Actualizar datos en localStorage
-          localStorage.setItem('sharedTransactionData', JSON.stringify(updatedTransaction));
-
-          alert('Datos actualizados correctamente');
-        } else {
-          alert('No se pudieron obtener los datos actualizados');
+    // Eventos de actualización
+    function setupUpdateButtons() {
+      // Evento de actualización en sección de actualización
+      document.getElementById('updateButton').addEventListener('click', async function() {
+        const currentUserEmail = SessionManager.getCurrentUser();
+        
+        if (!currentUserEmail) {
+          alert('No se ha iniciado sesión');
+          return;
         }
-      } catch (error) {
-        console.error('Error al actualizar:', error);
-        alert('Error al actualizar los datos');
-      }
-    });
 
-    document.getElementById('updateButtonDetail').addEventListener('click', async function() {
-      // Puedes reutilizar la misma lógica que ya tienes para actualizar
-      const transactionData = JSON.parse(localStorage.getItem('sharedTransactionData') || '{}');
-      if (!transactionData || !transactionData.transactionId) {
-        alert('No hay datos de transacción disponibles');
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/payment-button/transaction/${transactionData.transactionId}`);
-        const result = await response.json();
-
-        if (result.success) {
-          const updatedTransaction = result.transaction;
-
-          document.getElementById('userEmail').textContent = updatedTransaction.userEmail || 'N/A';
-          document.getElementById('amountUSD').textContent = updatedTransaction.amountUSD || 'N/A';
-          document.getElementById('transactionId').textContent = updatedTransaction.id || 'N/A';
-          document.getElementById('customerName').textContent = updatedTransaction.customer.name || 'N/A';
-          document.getElementById('customerEmail').textContent = updatedTransaction.customer.email || 'N/A';
-          document.getElementById('customerPhone').textContent = updatedTransaction.customer.phone || 'N/A';
-          document.getElementById('customerCpf').textContent = updatedTransaction.customer.cpf || 'N/A';
-
-          const qrCodeImage = document.getElementById('qrCodeImage');
-          const pixCode = document.getElementById('pixCode');
-          if (updatedTransaction.qrData && updatedTransaction.qrData.qrCodeBase64) {
-            qrCodeImage.src = `data:image/png;base64,${updatedTransaction.qrData.qrCodeBase64}`;
+        try {
+          const latestTransaction = await fetchLatestTransactionForUser(currentUserEmail);
+          
+          if (latestTransaction) {
+            displayTransactionDetails(latestTransaction);
+          } else {
+            alert('No se encontraron transacciones para este usuario');
           }
-          pixCode.textContent = updatedTransaction.qrData?.pixCopyPast || 'N/A';
-
-          localStorage.setItem('sharedTransactionData', JSON.stringify(updatedTransaction));
-          alert('Datos actualizados correctamente');
-        } else {
-          alert('No se pudieron obtener los datos actualizados');
+        } catch (error) {
+          console.error('Error al actualizar:', error);
+          alert('Error al actualizar los datos');
         }
-      } catch (error) {
-        console.error('Error al actualizar:', error);
-        alert('Error al actualizar los datos');
+      });
+
+      // Evento de actualización en sección de detalles
+      document.getElementById('updateButtonDetail').addEventListener('click', async function() {
+        const currentUserEmail = SessionManager.getCurrentUser();
+        
+        if (!currentUserEmail) {
+          alert('No se ha iniciado sesión');
+          return;
+        }
+
+        try {
+          const latestTransaction = await fetchLatestTransactionForUser(currentUserEmail);
+          
+          if (latestTransaction) {
+            displayTransactionDetails(latestTransaction);
+          } else {
+            alert('No se encontraron transacciones para este usuario');
+          }
+        } catch (error) {
+          console.error('Error al actualizar:', error);
+          alert('Error al actualizar los datos');
+        }
+      });
+    }
+
+    // Al cargar la página, intentar restaurar la última sesión
+    document.addEventListener('DOMContentLoaded', () => {
+      // Configurar eventos de actualización
+      setupUpdateButtons();
+
+      // Intentar recuperar el usuario actual
+      const currentUserEmail = SessionManager.getCurrentUser();
+      
+      if (currentUserEmail) {
+        // Intentar recuperar la última transacción almacenada
+        const storedTransaction = localStorage.getItem(`latestTransaction_${currentUserEmail}`);
+        
+        if (storedTransaction) {
+          try {
+            const transaction = JSON.parse(storedTransaction);
+            displayTransactionDetails(transaction);
+          } catch (error) {
+            console.error('Error al parsear transacción almacenada:', error);
+          }
+        }
       }
     });
   </script>

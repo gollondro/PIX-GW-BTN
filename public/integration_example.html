@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
+  <title>Ejemplo de Integración - Botón PIX Afex</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ejemplo de Integración - Botón PIX Afex</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     .code-block {
@@ -38,6 +38,16 @@
       padding: 1.5rem;
       margin-bottom: 1rem;
     }
+    #debugInfo {
+      background-color: #f4f4f4;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-top: 15px;
+      word-break: break-all;
+      font-size: 0.8em;
+      max-height: 300px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
@@ -59,7 +69,14 @@
             <form id="pixForm" onsubmit="event.preventDefault(); payWithAfexPIX();">
               <div class="mb-2">
                 <label class="form-label">Email usuario (comercio):</label>
-                <input type="email" class="form-control" id="userEmail" required value="afexlojista@teste.com">
+                <select class="form-control" id="userEmail" required>
+                  <option value="afexlojista@teste.com">AFEX Lojista (afexlojista@teste.com)</option>
+                  <option value="dolar@afex.cl">Operador USD (dolar@afex.cl)</option>
+                  <option value="mcaracci@gmail.com">Marcelo Caracci (mcaracci@gmail.com)</option>
+                  <option value="otro">Otro email (ingrese manual)</option>
+                </select>
+                <input type="email" class="form-control mt-2" id="userEmailCustom" style="display:none;" 
+                       placeholder="Ingrese su email">
               </div>
               <div class="mb-2">
                 <label class="form-label">ID Transacción:</label>
@@ -91,160 +108,122 @@
                 </button>
               </div>
             </form>
+            
+            <!-- Sección de Depuración -->
+            <div id="debugInfo" class="mt-3">
+              <h5>📋 Información de Depuración</h5>
+              <pre id="debugContent"></pre>
+            </div>
+
             <div id="paymentResult" class="alert" style="display: none;"></div>
           </div>
         </div>
-
-        <!-- Documentación -->
-        <div class="card mb-4">
-          <div class="card-header">
-            <h4>📋 Documentación de Integración</h4>
-          </div>
-          <div class="card-body">
-            
-            <h5>1. Endpoint para generar QR PIX</h5>
-            <p><strong>POST</strong> <code>/api/payment-button/generate</code></p>
-            
-            <h6>Parámetros requeridos:</h6>
-            <div class="code-block">{
-  "userEmail": "afexlojista@teste.com",
-  "transactionId": "ORDER-12345",
-  "amountUSD": 25.00,
-  "customerName": "Juan Pérez",
-  "customerEmail": "cliente@email.com",
-  "customerPhone": "+5511987654321",
-  "customerCpf": "12979230901",
-  "webhookUrl": "https://tu-comercio.com/webhook/pix-payment"
-}</div>
-
-            <h6>Respuesta exitosa:</h6>
-            <div class="code-block">{
-  "success": true,
-  "paymentUrl": "/payment-window/abc123",
-  "transactionId": "abc123",
-  "externalTransactionId": "ORDER-12345",
-  "amountUSD": 25.00,
-  "amountCLP": "23625",
-  "amountBRL": "132.50",
-  "rateCLPperUSD": 945,
-  "usdToBrlRate": "5.3000",
-  "expiresAt": "2025-05-23T15:35:00.000Z"
-}</div>
-
-            <h5 class="mt-4">2. Abrir ventana de pago</h5>
-            <p>Usa la URL retornada en <code>paymentUrl</code> para abrir la ventana de pago:</p>
-            <div class="code-block">// JavaScript
-function openPaymentWindow(paymentUrl) {
-  const popup = window.open(
-    paymentUrl, 
-    'afex_pix_payment',
-    'width=500,height=700,scrollbars=yes,resizable=yes'
-  );
-  
-  // Escuchar confirmación de pago
-  window.addEventListener('message', function(event) {
-    if (event.data.type === 'PAYMENT_SUCCESS') {
-      console.log('Pago confirmado:', event.data);
-      popup.close();
-      // Actualizar tu interfaz
-    }
-  });
-}</div>
-
-            <h5 class="mt-4">3. Webhook de confirmación</h5>
-            <p>Cuando el pago se confirme, recibirás un POST en tu webhookUrl:</p>
-            <div class="code-block">{
-  "success": true,
-  "transactionId": "ORDER-12345",
-  "internalTransactionId": "abc123",
-  "status": "PAID",
-  "amountUSD": 25.00,
-  "amountCLP": "23625",
-  "amountBRL": "132.50",
-  "customer": {
-    "name": "Juan Pérez",
-    "email": "cliente@email.com",
-    "phone": "+5511987654321",
-    "cpf": "12979230901"
-  },
-  "paidAt": "2025-05-23T15:32:45.123Z"
-}</div>
-
-            <h5 class="mt-4">4. Ejemplo completo de integración</h5>
-            <div class="code-block">async function payWithAfexPIX() {
-  try {
-    // 1. Generar QR PIX
-    const response = await fetch('/api/payment-button/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userEmail: 'afexlojista@teste.com',
-        transactionId: 'ORDER-' + Date.now(),
-        amountUSD: 25.00,
-        customerName: 'Juan Pérez',
-        customerEmail: 'cliente@email.com',
-        customerPhone: '+5511987654321',
-        customerCpf: '12979230901',
-        webhookUrl: 'https://tu-sitio.com/webhook/pix'
-      })
-    });
-
-    const data = await response.json();
-    
-    if (data.success) {
-      // 2. Abrir ventana de pago
-      const popup = window.open(
-        data.paymentUrl,
-        'afex_pix_payment',
-        'width=500,height=700'
-      );
-      
-      // 3. Escuchar confirmación
-      window.addEventListener('message', (event) => {
-        if (event.data.type === 'PAYMENT_SUCCESS') {
-          popup.close();
-          alert('¡Pago confirmado!');
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error:', error);
-  }
-}</div>
-
-          </div>
-        </div>
-
-        <!-- Notas importantes -->
-        <div class="alert alert-info">
-          <h6>📝 Notas importantes:</h6>
-          <ul class="mb-0">
-            <li>Necesitas estar registrado como usuario autorizado en el sistema</li>
-            <li>Tu usuario debe tener permisos para QR y USD</li>
-            <li>El webhook debe responder con status 200 para confirmar recepción</li>
-            <li>Los QR expiran en 5 minutos por defecto</li>
-            <li>Todos los montos se manejan en USD para transacciones externas</li>
-          </ul>
-        </div>
-
       </div>
     </div>
   </div>
 
   <script>
-    // Función de demo
+    // Configurar comportamiento del selector de email
+    document.getElementById('userEmail').addEventListener('change', function() {
+      const customEmailInput = document.getElementById('userEmailCustom');
+      if (this.value === 'otro') {
+        customEmailInput.style.display = 'block';
+        customEmailInput.required = true;
+      } else {
+        customEmailInput.style.display = 'none';
+        customEmailInput.required = false;
+      }
+    });
+
+    // Función para mostrar información de depuración
+    function showDebugInfo(data, title = 'Datos Enviados') {
+      const debugContent = document.getElementById('debugContent');
+      debugContent.textContent = `🔍 ${title}:\n${JSON.stringify(data, null, 2)}`;
+    }
+
+    // Funciones de estado de la interfaz
+    function showLoading(message) {
+      const resultDiv = document.getElementById('paymentResult');
+      resultDiv.className = 'alert alert-info';
+      resultDiv.innerHTML = `
+        <div class="d-flex align-items-center">
+          <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+          ${message}
+        </div>
+      `;
+      resultDiv.style.display = 'block';
+    }
+
+    function showSuccess(message) {
+      const resultDiv = document.getElementById('paymentResult');
+      resultDiv.className = 'alert alert-success';
+      resultDiv.innerHTML = `<strong>✅ ${message}</strong>`;
+      resultDiv.style.display = 'block';
+    }
+
+    function showError(message) {
+      const resultDiv = document.getElementById('paymentResult');
+      resultDiv.className = 'alert alert-danger';
+      resultDiv.innerHTML = `<strong>❌ ${message}</strong>`;
+      resultDiv.style.display = 'block';
+    }
+
+    function showInfo(message) {
+      const resultDiv = document.getElementById('paymentResult');
+      resultDiv.className = 'alert alert-primary';
+      resultDiv.innerHTML = `<strong>ℹ️ ${message}</strong>`;
+      resultDiv.style.display = 'block';
+    }
+
+    // Función para determinar el email del usuario
+    function getUserEmail() {
+      const userEmailSelect = document.getElementById('userEmail');
+      const customEmailInput = document.getElementById('userEmailCustom');
+      
+      // Si se seleccionó "otro", usar el email personalizado
+      if (userEmailSelect.value === 'otro') {
+        return customEmailInput.value.trim();
+      }
+      
+      // Usar el email seleccionado
+      return userEmailSelect.value;
+    }
+
+    // Función principal de pago con PIX
     async function payWithAfexPIX() {
       const resultDiv = document.getElementById('paymentResult');
       resultDiv.style.display = 'none';
 
-      // Obtén los valores del formulario
-      const userEmail = document.getElementById('userEmail').value;
+      // Obtener email del usuario de manera robusta
+      const userEmail = getUserEmail();
+
+      // Validación de email
+      if (!userEmail) {
+        showError('Por favor, seleccione o ingrese un email de usuario');
+        return;
+      }
+
+      // Obtener valores del formulario
       const transactionId = document.getElementById('transactionId').value;
       const amountUSD = parseFloat(document.getElementById('amountUSD').value);
       const customerName = document.getElementById('customerName').value;
       const customerEmail = document.getElementById('customerEmail').value;
       const customerPhone = document.getElementById('customerPhone').value;
       const customerCpf = document.getElementById('customerCpf').value;
+
+      // Preparar payload para depuración
+      const payloadForDebug = {
+        userEmail,
+        transactionId,
+        amountUSD,
+        customerName,
+        customerEmail,
+        customerPhone,
+        customerCpf
+      };
+
+      // Mostrar información de depuración
+      showDebugInfo(payloadForDebug, 'Datos de la Transacción');
 
       try {
         showLoading('Generando QR PIX...');
@@ -253,7 +232,7 @@ function openPaymentWindow(paymentUrl) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userEmail,
+            userEmail,    // ✅ Email del usuario incluido explícitamente
             transactionId,
             amountUSD,
             customerName,
@@ -266,8 +245,18 @@ function openPaymentWindow(paymentUrl) {
 
         const data = await response.json();
 
+        // Mostrar respuesta de la API para depuración
+        showDebugInfo(data, 'Respuesta de la API');
+
         if (data.success) {
-          hideLoading();
+          // Mostrar información adicional del QR generado
+          const qrDebugInfo = {
+            paymentUrl: data.paymentUrl,
+            transactionId: data.transactionId,
+            userEmailReturned: data.userEmail,
+            amountUSD: data.amountUSD
+          };
+          showDebugInfo(qrDebugInfo, 'Detalles del QR Generado');
 
           // Abrir ventana de pago
           const popup = window.open(
@@ -291,47 +280,18 @@ function openPaymentWindow(paymentUrl) {
         }
 
       } catch (error) {
-        hideLoading();
+        console.error('Error completo:', error);
+        
+        // Mostrar detalles del error para depuración
+        const errorDebugInfo = {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        };
+        showDebugInfo(errorDebugInfo, 'Detalles del Error');
+
         showError('Error: ' + error.message);
-        console.error('Error:', error);
       }
-    }
-    
-    function showLoading(message) {
-      const resultDiv = document.getElementById('paymentResult');
-      resultDiv.className = 'alert alert-info';
-      resultDiv.innerHTML = `
-        <div class="d-flex align-items-center">
-          <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-          ${message}
-        </div>
-      `;
-      resultDiv.style.display = 'block';
-    }
-    
-    function hideLoading() {
-      document.getElementById('paymentResult').style.display = 'none';
-    }
-    
-    function showSuccess(message) {
-      const resultDiv = document.getElementById('paymentResult');
-      resultDiv.className = 'alert alert-success';
-      resultDiv.innerHTML = `<strong>✅ ${message}</strong>`;
-      resultDiv.style.display = 'block';
-    }
-    
-    function showError(message) {
-      const resultDiv = document.getElementById('paymentResult');
-      resultDiv.className = 'alert alert-danger';
-      resultDiv.innerHTML = `<strong>❌ ${message}</strong>`;
-      resultDiv.style.display = 'block';
-    }
-    
-    function showInfo(message) {
-      const resultDiv = document.getElementById('paymentResult');
-      resultDiv.className = 'alert alert-primary';
-      resultDiv.innerHTML = `<strong>ℹ️ ${message}</strong>`;
-      resultDiv.style.display = 'block';
     }
   </script>
 </body>
