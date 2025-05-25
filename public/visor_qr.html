@@ -431,6 +431,22 @@
         }
       }
     });
+
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'PAYMENT_SUCCESS') {
+        // Mostrar mensaje de pago confirmado en el visor QR
+        document.getElementById('paymentStatus').innerHTML = `
+          <div class="alert alert-success">
+            <h4>✅ ¡Pago recibido!</h4>
+            <p>El pago fue confirmado correctamente.</p>
+            <hr>
+            <b>Fecha:</b> ${event.data.data.paid_at || ''}<br>
+            <b>Cliente:</b> ${event.data.data.name || ''}<br>
+            <b>Email:</b> ${event.data.data.email || ''}<br>
+          </div>
+        `;
+      }
+    });
   </script>
 </body>
 </html>

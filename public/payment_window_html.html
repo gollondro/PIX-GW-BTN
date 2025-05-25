@@ -405,6 +405,15 @@
 
             // Ocultar contador global
             document.getElementById('globalCountdown').style.display = 'none';
+
+            // Enviar mensaje a la ventana padre si está en un popup
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'PAYMENT_SUCCESS', 
+                transactionId: transactionId,
+                data: result.data 
+              }, '*');
+            }
           }
         } catch (error) {
           console.error('Error en polling:', error);
@@ -547,7 +556,8 @@
       setupPaymentStatusElement();
 
       if (transactionId) {
-        startPaymentPolling(transactionId);
+        startPaymentPolling(transactionId); // Para el status visual
+        startPollingPago(transactionId);    // Para el mensaje de pago recibido y notificación
       }
     });
   </script>
