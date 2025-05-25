@@ -5,6 +5,36 @@ const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const rendixApi = require('../services/rendixApi');
 
+// Función para verificar si un transactionId ya existe
+function isTransactionIdUnique(transactionId) {
+  const externalFile = path.join(__dirname, '../db/external_transactions.json');
+  if (!fs.existsSync(externalFile)) {
+    return true;
+  }
+  try {
+    const transactions = JSON.parse(fs.readFileSync(externalFile, 'utf8'));
+    const existingTransaction = transactions.find(
+      tx => tx.internalId === transactionId ||
+            tx.transactionId === transactionId
+    );
+    return !existingTransaction;
+  } catch (error) {
+    console.error('Error al verificar transactionId único:', error);
+    return false;
+  }
+}
+
+// Función para validar el formato del transactionId
+function validateTransactionIdFormat(transactionId) {
+  // Ejemplo: alfanumérico, guiones, 10-50 caracteres
+  const ID_PATTERN = /^[A-Z0-9-]{10,50}$/i;
+  return (
+    transactionId &&
+    typeof transactionId === 'string' &&
+    ID_PATTERN.test(transactionId)
+  );
+}
+
 // Función para extraer y validar el email del usuario con más logging
 function extractUserEmail(req) {
   console.log('🔬 Datos recibidos para extracción de email:', {
@@ -14,23 +44,20 @@ function extractUserEmail(req) {
     reqSession: req.session
   });
 
-  // Intentar obtener el email de diferentes fuentes
   const sourceEmails = [
-    req.body.userEmail,           // Primer lugar a buscar
-    req.body.email,                // Alternativa
-    req.user?.email,               // Si hay autenticación
-    req.session?.user?.email       // Si hay sesión
-  ].filter(Boolean); // Eliminar valores falsy
+    req.body.userEmail,
+    req.body.email,
+    req.user?.email,
+    req.session?.user?.email
+  ].filter(Boolean);
 
-  // Log de depuración
   console.log('🔍 Fuentes de email encontradas:', sourceEmails);
 
-  // Validar y devolver el primer email válido
   const validEmail = sourceEmails[0];
 
   if (!validEmail) {
     console.warn('⚠️ No se encontró ningún email de usuario válido');
-    return 'desconocido@default.com'; // Email por defecto para evitar errores
+    return 'desconocido@default.com';
   }
 
   console.log('✅ Email de usuario seleccionado:', validEmail);
@@ -40,25 +67,17 @@ function extractUserEmail(req) {
 // Función para obtener la última transacción de un usuario con logging detallado e insensible a mayúsculas/minúsculas
 function getLatestTransactionForUser(userEmail) {
   console.log(`🔍 Buscando última transacción para email: ${userEmail}`);
-  
   const externalFile = path.join(__dirname, '../db/external_transactions.json');
-  
   if (!fs.existsSync(externalFile)) {
     console.log(`❌ Archivo de transacciones no encontrado: ${externalFile}`);
     return null;
   }
-
   try {
-    // Leer todas las transacciones
     const transactions = JSON.parse(fs.readFileSync(externalFile, 'utf8'));
-    
     console.log('📊 Total de transacciones:', transactions.length);
-    
-    // Filtrar transacciones del usuario sin considerar mayúsculas/minúsculas y espacios
     const userTransactions = transactions.filter(t => {
       const match = t.userEmail &&
         t.userEmail.trim().toLowerCase() === userEmail.trim().toLowerCase();
-      
       if (match) {
         console.log('🎯 Transacción encontrada:', {
           internalId: t.internalId,
@@ -67,15 +86,11 @@ function getLatestTransactionForUser(userEmail) {
           createdAt: t.createdAt
         });
       }
-      
       return match;
     });
-
-    // Ordenar por fecha de creación, más reciente primero
-    const sortedTransactions = userTransactions.sort((a, b) => 
+    const sortedTransactions = userTransactions.sort((a, b) =>
       new Date(b.createdAt) - new Date(a.createdAt)
     );
-    
     if (sortedTransactions.length > 0) {
       console.log('✅ Última transacción encontrada:', {
         internalId: sortedTransactions[0].internalId,
@@ -107,143 +122,108 @@ router.get('/latest-transaction', (req, res) => {
   }
 });
 
-// Endpoint público para generar QR desde comercio externo 
+// Endpoint para generar QR con validaciones
 router.post('/generate', async (req, res) => {
   try {
-    // Extraer y validar el email del usuario
+    const {
+      transactionId,
+      amountUSD,
+      customerName,
+      customerEmail,
+      customerPhone,
+      customerCpf
+    } = req.body;
+
+    // Validación 1: Formato del transactionId
+    if (!validateTransactionIdFormat(transactionId)) {
+      console.warn(`❌ ID de transacción inválido: ${transactionId}`);
+      return res.status(400).json({
+        success: false,
+        error: 'El transactionId debe ser una cadena alfanumérica entre 10 y 50 caracteres'
+      });
+    }
+
+    // Validación 2: Unicidad del transactionId
+    if (!isTransactionIdUnique(transactionId)) {
+      console.warn(`❌ ID de transacción ya existe: ${transactionId}`);
+      return res.status(400).json({
+        success: false,
+        error: 'El transactionId ya ha sido utilizado previamente'
+      });
+    }
+
+    // Extraer email del usuario
     const userEmail = extractUserEmail(req);
 
-    // Generar un ID de transacción único
-    const transactionId = 'DEMO-' + Date.now();
-
-    // Preparar los datos del cliente
-    const customerData = {
-      name: req.body.customerName,
-      email: req.body.customerEmail,
-      phone: req.body.customerPhone,
-      cpf: req.body.customerCpf
-    };
-
-    // Log detallado de los datos recibidos
-    console.log('📦 Datos recibidos para generación de QR:', {
-      userEmail,
-      transactionId,
-      customerData,
-      amountUSD: req.body.amountUSD
-    });
-
-    // Llamar a Rendix/Renpix para obtener el QR
+    // Llamar a Rendix usando el transactionId del request
     const pixResult = await rendixApi.createPixChargeLink({
-      amountUSD: req.body.amountUSD,
-      customer: customerData,
-      controlNumber: uuidv4(),
-      webhook: process.env.RENPIX_WEBHOOK || 'https://pix-gateway-dev2.onrender.com/api/webhook'
+      amountUSD,
+      customer: {
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+        cpf: customerCpf
+      },
+      controlNumber: transactionId,
+      webhook: process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook'
     });
 
-    // Crear la transacción con información detallada
+    // Preparar datos de la transacción
     const transaction = {
-      // Información de identificación
       internalId: transactionId,
-      userEmail: userEmail,  // Guardar explícitamente el email del usuario
-      
-      // Detalles de la transacción
-      amountUSD: req.body.amountUSD,
+      userEmail: userEmail,
+      amountUSD,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
       createdAt: new Date().toISOString(),
       status: 'PENDIENTE',
-      
-      // Información del cliente
-      customer: customerData,
-      
-      // Información adicional de Rendix
-      vetTax: pixResult.vetTax,
-      priceNationalCurrency: pixResult.priceNationalCurrency,
-      
-      // Datos del QR
+      customer: {
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+        cpf: customerCpf
+      },
       qrData: {
         pixCopyPast: pixResult.pixCopyPast || '',
         qrCodeBase64: pixResult.qrCodeBase64 || ''
       },
-      
-      // Metadatos de depuración
-      _debug: {
-        sourceIP: req.ip,
-        requestBody: JSON.stringify(req.body),
-        timestamp: new Date().toISOString()
-      }
+      vetTax: pixResult.vetTax,
+      priceNationalCurrency: pixResult.priceNationalCurrency
     };
 
     // Guardar transacción en archivo
     const externalFile = path.join(__dirname, '../db/external_transactions.json');
     let transactions = [];
-    
-    // Leer archivo existente
     if (fs.existsSync(externalFile)) {
       try {
         transactions = JSON.parse(fs.readFileSync(externalFile, 'utf8'));
       } catch (readError) {
         console.error('❌ Error al leer archivo de transacciones:', readError);
-        transactions = [];
       }
     }
-
-    // Añadir nueva transacción
     transactions.push(transaction);
-
-    // Guardar archivo con manejo de errores
     try {
       fs.writeFileSync(externalFile, JSON.stringify(transactions, null, 2));
       console.log('💾 Transacción guardada exitosamente');
-      console.log('📝 Detalles de la transacción guardada:', {
-        userEmail: transaction.userEmail,
-        amountUSD: transaction.amountUSD,
-        createdAt: transaction.createdAt
-      });
     } catch (writeError) {
       console.error('❌ Error al guardar transacción:', writeError);
     }
 
-    // Respuesta al cliente
-    const responseData = {
+    res.json({
       success: true,
       paymentUrl: `/payment-window/${transactionId}`,
       transactionId,
-      amountUSD: transaction.amountUSD,
-      userEmail: userEmail,  // Incluir email en la respuesta
+      amountUSD,
+      userEmail,
       qrData: transaction.qrData,
       expiresAt: transaction.expiresAt
-    };
-
-    // Log final de la respuesta
-    console.log('📤 Respuesta generada:', {
-      success: responseData.success,
-      transactionId: responseData.transactionId,
-      userEmail: responseData.userEmail
     });
 
-    res.json(responseData);
-
   } catch (error) {
-    // Manejo de errores detallado
     console.error('❌ Error en /generate:', error);
-    
-    // Log de detalles del error
-    if (error.response) {
-      console.error('Detalles de respuesta:', {
-        status: error.response.status,
-        data: error.response.data
-      });
-    }
-
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: 'Error al generar QR',
-      details: error.message,
-      requestData: {
-        userEmail: req.body.userEmail,
-        customerName: req.body.customerName,
-        amountUSD: req.body.amountUSD
-      }
+      details: error.message
     });
   }
 });
@@ -252,7 +232,6 @@ router.post('/generate', async (req, res) => {
 router.get('/transaction/:id', (req, res) => {
   try {
     const { id } = req.params;
-    
     const externalFile = path.join(__dirname, '../db/external_transactions.json');
     if (!fs.existsSync(externalFile)) {
       return res.status(404).json({
@@ -260,32 +239,26 @@ router.get('/transaction/:id', (req, res) => {
         error: 'Transacción no encontrada'
       });
     }
-
     const externalTransactions = JSON.parse(fs.readFileSync(externalFile, 'utf8'));
-    const transaction = externalTransactions.find(t => 
-      t.internalId === id || 
-      t.transactionId === id // Considerar ambos posibles ID
+    const transaction = externalTransactions.find(t =>
+      t.internalId === id ||
+      t.transactionId === id
     );
-
     if (!transaction) {
       return res.status(404).json({
         success: false,
         error: 'Transacción no encontrada'
       });
     }
-
-    // Log de depuración al recuperar transacción
     console.log('🔍 Transacción recuperada:', {
       internalId: transaction.internalId,
       userEmail: transaction.userEmail,
       amountUSD: transaction.amountUSD
     });
-
     res.json({
       success: true,
       transaction
     });
-
   } catch (error) {
     console.error('❌ Error al obtener transacción externa:', error);
     res.status(500).json({
@@ -302,16 +275,12 @@ router.get('/all', (req, res) => {
     if (!fs.existsSync(externalFile)) {
       return res.json({ success: true, transactions: [] });
     }
-    
     const transactions = JSON.parse(fs.readFileSync(externalFile, 'utf8'));
-    
-    // Log de depuración para todas las transacciones
     console.log('📋 Transacciones recuperadas:', transactions.map(t => ({
       internalId: t.internalId,
       userEmail: t.userEmail,
       amountUSD: t.amountUSD
     })));
-
     res.json({ success: true, transactions });
   } catch (error) {
     console.error('❌ Error al obtener transacciones botón:', error);
