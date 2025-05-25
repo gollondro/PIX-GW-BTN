@@ -236,7 +236,7 @@
         addShareQRButton();
 
         // Iniciar polling de estado de pago
-        startPolling();
+        startPolling(transactionId);        // Ya tienes esta función definida
 
         // Configurar enlace de visor QR
         setupQRViewerLink();
@@ -557,7 +557,7 @@
 
       if (transactionId) {
         startPaymentPolling(transactionId); // Para el status visual
-        startPollingPago(transactionId);    // Para el mensaje de pago recibido y notificación
+        startPolling(transactionId);        // Para el mensaje de pago recibido y notificación
       }
     });
   </script>
