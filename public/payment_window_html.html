@@ -560,6 +560,90 @@
         startPolling(transactionId);        // Para el mensaje de pago recibido y notificación
       }
     });
+
+    // Función para procesar la confirmación de pago
+    function procesarConfirmacionPago(transactionData) {
+      // Ocultar secciones de carga y QR si existen
+      const loadingSection = document.getElementById('loadingSection');
+      if (loadingSection) loadingSection.style.display = 'none';
+      const qrResult = document.getElementById('qrResult');
+      if (qrResult) qrResult.style.display = 'none';
+
+      // Mostrar sección de pago confirmado
+      const paymentConfirmationSection = document.createElement('div');
+      paymentConfirmationSection.className = 'alert alert-success text-center';
+      paymentConfirmationSection.innerHTML = `
+        <h4>✅ ¡Pago recibido!</h4>
+        <p>El pago fue confirmado correctamente.</p>
+        <hr>
+        <b>Monto:</b> $${transactionData.amountUSD} USD<br>
+        <b>Fecha:</b> ${transactionData.paid_at ? new Date(transactionData.paid_at).toLocaleString() : ''}<br>
+        <b>Cliente:</b> ${transactionData.customer?.name || ''}<br>
+        <b>Email:</b> ${transactionData.customer?.email || ''}<br>
+      `;
+
+      // Insertar la confirmación en el contenedor principal
+      const paymentSection = document.getElementById('paymentSection');
+      paymentSection.innerHTML = ''; // Limpiar contenido previo
+      paymentSection.appendChild(paymentConfirmationSection);
+      paymentSection.style.display = 'block';
+
+      // Ocultar el contador global
+      const globalCountdown = document.getElementById('globalCountdown');
+      if (globalCountdown) globalCountdown.style.display = 'none';
+
+      // Notificar a la ventana padre si está en un popup
+      if (window.opener) {
+        window.opener.postMessage({ 
+          type: 'PAYMENT_SUCCESS', 
+          transactionId: transactionData.internalId,
+          data: transactionData 
+        }, '*');
+      }
+    }
+
+    // Función para verificar el estado de la transacción
+    async function checkTransactionStatus(transactionId) {
+      try {
+        const response = await fetch(`/api/payment/status/${transactionId}`);
+        const result = await response.json();
+
+        if (result.paid && result.data) {
+          procesarConfirmacionPago(result.data);
+        }
+      } catch (error) {
+        console.error('Error al verificar estado de transacción:', error);
+      }
+    }
+
+    // Modificar el script de carga para incluir verificación de estado
+    document.addEventListener('DOMContentLoaded', () => {
+      const pathParts = window.location.pathname.split('/');
+      const transactionId = pathParts[pathParts.length - 1];
+
+      if (transactionId) {
+        // Llamar a la función de verificación de estado cada 3 segundos
+        const statusPolling = setInterval(async () => {
+          const response = await fetch(`/api/payment-button/transaction/${transactionId}`);
+          const data = await response.json();
+
+          if (data.success && data.transaction.status === 'PAGADO') {
+            clearInterval(statusPolling);
+            procesarConfirmacionPago(data.transaction);
+          }
+        }, 3000);
+
+        // Detener el polling después de 5 minutos
+        setTimeout(() => clearInterval(statusPolling), 5 * 60 * 1000);
+      }
+    });
+
+    // Manejar mensaje del webhook
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'PAYMENT_SUCCESS') {
+        procesarConfirmacionPago(event.data.data);
+      }
+    });
   </script>
 </body>
 </html>
