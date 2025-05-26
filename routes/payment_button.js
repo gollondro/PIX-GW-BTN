@@ -165,7 +165,7 @@ router.post('/generate', async (req, res) => {
         cpf: customerCpf
       },
       controlNumber: transactionId,
-      webhook: process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook'
+      UrlWebhook: process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook'
     });
 
     // Preparar datos de la transacción

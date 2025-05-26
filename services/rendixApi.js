@@ -105,7 +105,7 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber, operati
     console.log('📦 Payload completo:', JSON.stringify(payload));
     
     // Destacar el webhook en los logs
-    console.log('📣 URL del webhook enviada:', payload.webhook);
+    console.log('📣 URL del webhook enviada:', payload.UrlWebhook);
 
     const res = await axios.post(`${process.env.RENPIX_API_URL}/sell`, payload, {
       headers: {
@@ -150,7 +150,7 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber, operati
       ...res.data.data,
       transactionId: controlNumber,
       controlNumber,
-      webhookUrl: payload.webhook // Incluir la URL del webhook en la respuesta para referencia
+      UrlWebhook: payload.UrlWebhook // Incluir la URL del webhook en la respuesta para referencia
     };
   } catch (error) {
     console.error('❌ Error al generar cobro PIX:', error.message);

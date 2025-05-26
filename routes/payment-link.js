@@ -73,7 +73,7 @@ router.post('/', async (req, res) => {
     // ----------------------------------------
 
     const customer = { name, email, phone, cpf };
-    const webhookUrl = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
+    const UrlWebhook = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
 
     const payload = {
       merchantId: 3111,
@@ -81,7 +81,7 @@ router.post('/', async (req, res) => {
       description: `Link de pago para ${name}`,
       controlNumber: transactionId,
       email,
-      UrlWebhook: webhookUrl,
+      UrlWebhook: UrlWebhook,
       currencyCode: currency,
       operationCode: operationCode, // Usar el operationCode del usuario
       beneficiary: name
@@ -119,7 +119,7 @@ router.post('/', async (req, res) => {
       date: new Date().toISOString(),
       status: 'PENDIENTE',
       originalCurrency,
-      webhookUrl,
+      UrlWebhook,
       userEmail,
       description,
       paymentMethod: 'link'
@@ -154,7 +154,7 @@ router.post('/', async (req, res) => {
       phone,
       cpf,
       description,
-      webhookUrl,
+      UrlWebhook,
       date: new Date().toISOString()
     };
 

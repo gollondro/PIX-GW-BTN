@@ -82,7 +82,7 @@ router.post('/', async (req, res) => {
     const transactionId = uuidv4();
 
     const customer = { name, email, phone, cpf };
-    const webhookUrl = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
+    const UrlWebhook = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
 
     // Construir el payload usando operationCode
     const payload = {
@@ -92,7 +92,7 @@ router.post('/', async (req, res) => {
       controlNumber: transactionId,
       phone: phone,
       email: email,
-      webhook: process.env.RENPIX_WEBHOOK || "http://localhost:3000/api/webhook",
+      UrlWebhook: process.env.RENPIX_WEBHOOK || "http://localhost:3000/api/webhook",
       currencyCode: 'USD',
       operationCode: operationCode, // Usar el operationCode del usuario
       beneficiary: name
@@ -209,7 +209,7 @@ router.post('/', async (req, res) => {
       date: new Date().toISOString(),
       status: 'PENDIENTE',
       originalCurrency,
-      webhookUrl, // Guardar la URL del webhook para referencia
+      UrlWebhook, // Guardar la URL del webhook para referencia
       userEmail   // Guardar el email del usuario que generó la cotización
     };
     
@@ -238,7 +238,7 @@ router.post('/', async (req, res) => {
       amountBRL,
       rateCLPperUSD,
       vetTax: vetTaxFormatted, // Usar el formato correcto sin %
-      webhookUrl: pixCharge.webhookUrl || webhookUrl, // Incluir la URL del webhook en la respuesta
+      UrlWebhook: pixCharge.UrlWebhook || UrlWebhook, // Incluir la URL del webhook en la respuesta
       qrData: {
         pixCopyPast: pixCopyPast || `https://example.com/pix/${transactionId}`,
         qrCodeBase64: qrCodeBase64 || '' // Si no hay QR, enviar cadena vacía
@@ -292,7 +292,7 @@ async function getAgillitasToken() {
 router.post('/payment-link', async (req, res) => {
   const { amount, name, email, phone, cpf, currency, userEmail } = req.body; // <-- Añadir userEmail aquí
 
-  const webhookUrl = process.env.RENPIX_WEBHOOK;
+  const UrlWebhook = process.env.RENPIX_WEBHOOK;
   const transactionId = uuidv4();
 
   const payload = {
@@ -301,7 +301,7 @@ router.post('/payment-link', async (req, res) => {
     description: `Link de pago para ${name}`,
     controlNumber: transactionId,
     email,
-    UrlWebhook: webhookUrl,
+    UrlWebhook: UrlWebhook,
     currencyCode: currency,
     operationCode: 1,
     beneficiary: name
