@@ -6,45 +6,16 @@
   <title>Visor QR - Transacciones PIX</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
-    body { 
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-    .login-container {
-      max-width: 400px;
-      margin: 0 auto;
-      background: white;
-      padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-    .visor-container {
-      max-width: 800px;
-      margin: 0 auto;
-      background: white;
-      padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-    #transactionDetails {
-      display: none;
-    }
-    .debug-info {
-      background-color: #f4f4f4;
-      border: 1px solid #ddd;
-      padding: 10px;
-      margin-top: 15px;
-      word-break: break-all;
-      font-size: 0.8em;
-    }
+    body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; display: flex; flex-direction: column; justify-content: center; }
+    .login-container, .visor-container { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin: 0 auto; }
+    .login-container { max-width: 400px; }
+    .visor-container { max-width: 800px; }
+    .debug-info { background-color: #f4f4f4; border: 1px solid #ddd; padding: 10px; margin-top: 15px; word-break: break-word; font-size: 0.8em; }
+    #transactionDetails { display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Login Section -->
     <div id="loginSection" class="login-container">
       <h3 class="text-center mb-4">Visor QR - Login</h3>
       <form id="loginForm">
@@ -58,448 +29,156 @@
         </div>
         <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
       </form>
-      
-      <!-- Debug Section -->
-      <div id="debugInfo" class="debug-info">
-        <h5>Información de Depuración</h5>
+      <div class="debug-info">
+        <h5>Depuración</h5>
         <pre id="debugContent"></pre>
-        <div id="storageDebug"></div>
       </div>
     </div>
 
-    <!-- Update Section -->
-    <div id="updateSection" class="login-container" style="display:none;">
-      <h3 class="text-center mb-4">Última Transacción</h3>
-      <div class="text-center">
-        <button id="updateButton" class="btn btn-success btn-lg">
-          🔄 Actualizar Datos de Transacción
-        </button>
-      </div>
-    </div>
-
-    <!-- Transaction Viewer Section -->
     <div id="transactionDetails" class="visor-container">
-      <h3 class="text-center mb-4">Detalles de la Transacción</h3>
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">Detalles de la Transacción</h3>
+        <button onclick="logout()" class="btn btn-danger">Cerrar Sesión</button>
+      </div>
       <div class="row">
         <div class="col-md-6">
-          <h5>Información del Comercio</h5>
+          <h5>Comercio</h5>
           <p><strong>Email:</strong> <span id="userEmail"></span></p>
-        </div>
-        <div class="col-md-6">
-          <h5>Detalles de la Transacción</h5>
-          <p><strong>Monto USD:</strong> <span id="amountUSD"></span></p>
           <p><strong>ID Transacción:</strong> <span id="transactionId"></span></p>
+          <p><strong>Monto USD:</strong> <span id="amountUSD"></span></p>
           <p><strong>Estado:</strong> <span id="transactionStatus" class="badge bg-warning">PENDIENTE</span></p>
         </div>
-      </div>
-
-      <div class="row mt-4">
         <div class="col-md-6">
-          <h5>Información del Cliente</h5>
+          <h5>Cliente</h5>
           <p><strong>Nombre:</strong> <span id="customerName"></span></p>
           <p><strong>Email:</strong> <span id="customerEmail"></span></p>
           <p><strong>Teléfono:</strong> <span id="customerPhone"></span></p>
           <p><strong>CPF:</strong> <span id="customerCpf"></span></p>
         </div>
+      </div>
+      <div class="row mt-4">
         <div class="col-md-6">
-          <h5>Información del QR</h5>
           <img id="qrCodeImage" src="" alt="QR Code" class="img-fluid" style="max-height: 250px;">
-          <p class="mt-2">
-            <strong>Código PIX:</strong> 
-            <span id="pixCode" style="word-break: break-all;"></span>
-          </p>
-         <button id="updateButtonDetail" class="btn btn-success btn-lg">
-          🔄 Actualizar Datos de Transacción
-        </button>
+          <p><strong>Código PIX:</strong> <span id="pixCode" style="word-break: break-all;"></span></p>
+        </div>
+        <div class="col-md-6">
+          <button id="updateButton" class="btn btn-success w-100">🔄 Actualizar Datos</button>
         </div>
       </div>
-
-      <!-- Payment Status Section -->
-      <div id="paymentStatus" class="mt-3"></div>
+      <div id="paymentStatus" class="mt-4"></div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // Objeto para gestionar la sesión y transacciones
+    let pollingInterval = null;
+
     const SessionManager = {
-      // Guardar email de usuario
-      setCurrentUser: function(email) {
-        console.log('🔐 Guardando usuario actual:', email);
+      setCurrentUser: email => {
         sessionStorage.setItem('currentUserEmail', email);
         localStorage.setItem('currentUserEmail', email);
       },
-
-      // Obtener email de usuario
-      getCurrentUser: function() {
-        // Intentar obtener de sessionStorage primero
-        let email = sessionStorage.getItem('currentUserEmail');
-        
-        // Si no está en sessionStorage, intentar localStorage
-        if (!email) {
-          email = localStorage.getItem('currentUserEmail');
-          
-          // Si lo encontramos en localStorage, guardarlo en sessionStorage
-          if (email) {
-            sessionStorage.setItem('currentUserEmail', email);
-          }
-        }
-
-        console.log('🔍 Usuario actual recuperado:', email);
-        return email;
-      },
-
-      // Limpiar sesión
-      clearSession: function() {
-        console.log('🚪 Limpiando sesión');
-        sessionStorage.removeItem('currentUserEmail');
-        localStorage.removeItem('currentUserEmail');
-      }
+      getCurrentUser: () => sessionStorage.getItem('currentUserEmail') || localStorage.getItem('currentUserEmail'),
+      clearSession: () => { sessionStorage.clear(); localStorage.clear(); }
     };
 
-    // Función para obtener la última transacción de un usuario
-    async function fetchLatestTransactionForUser(userEmail) {
-      try {
-        console.log(`🔍 Buscando última transacción para: ${userEmail}`);
-        const response = await fetch(`/api/payment-button/latest-transaction?userEmail=${encodeURIComponent(userEmail)}`);
-        const result = await response.json();
-
-        console.log('📦 Respuesta de última transacción:', result);
-
-        if (result.success && result.transaction) {
-          // Guardar en localStorage para persistencia entre dispositivos
-          localStorage.setItem(`latestTransaction_${userEmail}`, JSON.stringify(result.transaction));
-          
-          return result.transaction;
-        } else {
-          console.warn('⚠️ No se encontró transacción para el usuario');
-          return null;
-        }
-      } catch (error) {
-        console.error('❌ Error al buscar última transacción:', error);
-        return null;
-      }
+    async function fetchTransaction(email) {
+      const res = await fetch(`/api/payment-button/latest-transaction?userEmail=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      return data.success ? data.transaction : null;
     }
 
-    // Función para iniciar polling de estado de pago
-    function startPaymentPolling(transaction) {
-      const transactionId = transaction.internalId || transaction.transactionId;
-      let pollingInterval = null;
-      let maxAttempts = 60; // Intentos cada 3 segundos = 3 minutos
-      let attempts = 0;
+    function displayTransaction(tx) {
+      document.getElementById('userEmail').textContent = tx.userEmail;
+      document.getElementById('transactionId').textContent = tx.internalId || tx.transactionId;
+      document.getElementById('amountUSD').textContent = `${tx.amountUSD} USD`;
+      document.getElementById('transactionStatus').textContent = tx.status;
+      const badge = document.getElementById('transactionStatus');
+      badge.className = 'badge';
+      badge.classList.add(tx.status === 'PAGADO' ? 'bg-success' : 'bg-warning');
+      document.getElementById('customerName').textContent = tx.customer?.name || '-';
+      document.getElementById('customerEmail').textContent = tx.customer?.email || '-';
+      document.getElementById('customerPhone').textContent = tx.customer?.phone || '-';
+      document.getElementById('customerCpf').textContent = tx.customer?.cpf || '-';
 
-      function stopPolling() {
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-        }
-      }
+      const qr = tx.qrData || {};
+      const qrImg = document.getElementById('qrCodeImage');
+      qrImg.src = qr.qrCodeBase64 ? `data:image/png;base64,${qr.qrCodeBase64}` : '';
+      qrImg.style.display = qr.qrCodeBase64 ? 'block' : 'none';
+      document.getElementById('pixCode').textContent = qr.pixCopyPast || '-';
 
-      pollingInterval = setInterval(async () => {
-        attempts++;
-
-        // Detener después de cierto número de intentos
-        if (attempts >= maxAttempts) {
-          stopPolling();
-          document.getElementById('paymentStatus').innerHTML = `
-            <div class="alert alert-warning">
-              <h4>⏰ Tiempo de espera agotado</h4>
-              <p>No se pudo confirmar el pago. Por favor, verifique su transacción.</p>
-            </div>
-          `;
-          return;
-        }
-
-        try {
-          // Verificar estado en transacciones de botón
-          const response = await fetch(`/api/payment-button/transaction/${transactionId}`);
-          const result = await response.json();
-
-          if (result.success && result.transaction.status === 'PAGADO') {
-            stopPolling();
-
-            // Actualizar el estado visual
-            const statusElement = document.getElementById('transactionStatus');
-            statusElement.textContent = 'PAGADO';
-            statusElement.className = 'badge bg-success';
-
-            // Mostrar confirmación
-            document.getElementById('paymentStatus').innerHTML = `
-              <div class="alert alert-success">
-                <h4>✅ ¡Pago confirmado!</h4>
-                <p>Su pago ha sido procesado exitosamente.</p>
-                <hr>
-                <b>Monto:</b> ${result.transaction.amountUSD} USD<br>
-                <b>Fecha:</b> ${result.transaction.paid_at ? new Date(result.transaction.paid_at).toLocaleString() : new Date().toLocaleString()}<br>
-                <b>Cliente:</b> ${result.transaction.customer?.name || 'N/A'}<br>
-                <b>Email:</b> ${result.transaction.customer?.email || 'N/A'}
-              </div>
-            `;
-
-            // Ocultar QR ya que el pago fue confirmado
-            const qrCodeImage = document.getElementById('qrCodeImage');
-            if (qrCodeImage) qrCodeImage.style.display = 'none';
-
-            // Actualizar la transacción almacenada
-            const currentUserEmail = SessionManager.getCurrentUser();
-            if (currentUserEmail) {
-              localStorage.setItem(`latestTransaction_${currentUserEmail}`, JSON.stringify(result.transaction));
-            }
-          }
-        } catch (error) {
-          console.error('Error en polling:', error);
-        }
-      }, 3000); // Cada 3 segundos
-    }
-
-    // Función para actualizar detalles visuales después del pago
-    function updateTransactionDetailsAfterPayment(paymentData) {
-      // Ocultar detalles previos si es necesario
-      const qrCodeImage = document.getElementById('qrCodeImage');
-      if (qrCodeImage) qrCodeImage.style.display = 'none';
-
-      // Actualizar algunos detalles de pago si es relevante
-      if (paymentData.paid_at) {
-        document.getElementById('customerName').textContent = paymentData.name || 'N/A';
-        document.getElementById('customerEmail').textContent = paymentData.email || 'N/A';
-        document.getElementById('amountUSD').textContent = paymentData.amountUSD + ' USD';
-      }
-    }
-
-    // Añadir elemento para mostrar estado del pago
-    function setupPaymentStatusElement() {
-      const container = document.getElementById('transactionDetails');
-      const statusDiv = document.createElement('div');
-      statusDiv.id = 'paymentStatus';
-      statusDiv.className = 'mt-3';
-      container.appendChild(statusDiv);
-    }
-
-    // Modificar la función de mostrar detalles para añadir polling automático
-    // Modifica la función displayTransactionDetails para incluir el estado
-    function displayTransactionDetails(transaction) {
-      if (!transaction) {
-        alert('No se encontraron transacciones para este usuario');
-        return false;
-      }
-
-      // Mostrar detalles en la interfaz
-      document.getElementById('userEmail').textContent = transaction.userEmail || 'N/A';
-      document.getElementById('amountUSD').textContent = transaction.amountUSD || 'N/A';
-      document.getElementById('transactionId').textContent = transaction.internalId || transaction.id || 'N/A';
-      
-      // Mostrar estado de la transacción
-      const statusElement = document.getElementById('transactionStatus');
-      const status = transaction.status || 'PENDIENTE';
-      statusElement.textContent = status;
-      
-      // Aplicar estilos según el estado
-      statusElement.className = 'badge';
-      if (status === 'PAGADO') {
-        statusElement.classList.add('bg-success');
-      } else if (status === 'PENDIENTE') {
-        statusElement.classList.add('bg-warning');
-      } else {
-        statusElement.classList.add('bg-secondary');
-      }
-
-      // Detalles del cliente
-      const customer = transaction.customer || {};
-      document.getElementById('customerName').textContent = customer.name || 'N/A';
-      document.getElementById('customerEmail').textContent = customer.email || 'N/A';
-      document.getElementById('customerPhone').textContent = customer.phone || 'N/A';
-      document.getElementById('customerCpf').textContent = customer.cpf || 'N/A';
-      
-      // Información del QR
-      const qrData = transaction.qrData || {};
-      const qrCodeImage = document.getElementById('qrCodeImage');
-      const pixCode = document.getElementById('pixCode');
-      
-      if (qrData.qrCodeBase64) {
-        qrCodeImage.src = `data:image/png;base64,${qrData.qrCodeBase64}`;
-        qrCodeImage.style.display = 'block';
-      } else {
-        qrCodeImage.style.display = 'none';
-      }
-      
-      pixCode.textContent = qrData.pixCopyPast || 'N/A';
-
-      // Mostrar secciones
       document.getElementById('loginSection').style.display = 'none';
-      document.getElementById('updateSection').style.display = 'none';
       document.getElementById('transactionDetails').style.display = 'block';
-
-      // Añadir elemento de estado de pago
-      setupPaymentStatusElement();
-
-      // Solo iniciar polling si el estado no es PAGADO
-      if (status !== 'PAGADO') {
-        startPaymentPolling(transaction);
-      } else {
-        // Si ya está pagado, mostrar mensaje de confirmación
-        document.getElementById('paymentStatus').innerHTML = `
-          <div class="alert alert-success">
-            <h4>✅ ¡Pago confirmado!</h4>
-            <p>Esta transacción ya ha sido pagada.</p>
-            <hr>
-            <b>Fecha:</b> ${transaction.paid_at ? new Date(transaction.paid_at).toLocaleString() : 'N/A'}<br>
-            <b>Cliente:</b> ${customer.name || 'N/A'}<br>
-            <b>Email:</b> ${customer.email || 'N/A'}
-          </div>
-        `;
-      }
-
-      return true;
     }
 
-    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    async function startPolling(transactionId) {
+      if (pollingInterval) clearInterval(pollingInterval);
+      let attempts = 0;
+      pollingInterval = setInterval(async () => {
+        if (++attempts > 60) return clearInterval(pollingInterval);
+        const res = await fetch(`/api/payment-button/transaction/${transactionId}`);
+        const data = await res.json();
+        if (data.success && data.transaction.status === 'PAGADO') {
+          clearInterval(pollingInterval);
+          displayTransaction(data.transaction);
+          document.getElementById('paymentStatus').innerHTML = `
+            <div class="alert alert-success">✅ Pago confirmado<br><b>Fecha:</b> ${new Date(data.transaction.paid_at).toLocaleString()}</div>`;
+          document.getElementById('qrCodeImage').style.display = 'none';
+        }
+      }, 3000);
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async e => {
       e.preventDefault();
-
       const email = document.getElementById('loginEmail').value;
-      const password = document.getElementById('loginPassword').value;
-
-      if (!email || !password) {
-        alert('Por favor, complete todos los campos');
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-
-        // Verifica el status antes de parsear JSON
-        if (!response.ok) {
-          throw new Error('Respuesta HTTP no OK: ' + response.status);
+      const pass = document.getElementById('loginPassword').value;
+      const res = await fetch('/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass })
+      });
+      const data = await res.json();
+      document.getElementById('debugContent').textContent = JSON.stringify(data, null, 2);
+      if (data.success) {
+        SessionManager.setCurrentUser(email);
+        const tx = await fetchTransaction(email);
+        if (tx) {
+          displayTransaction(tx);
+          if (tx.status !== 'PAGADO') startPolling(tx.transactionId || tx.internalId);
         }
+      } else alert(data.error || 'Login fallido');
+    });
 
-        const data = await response.json();
-
-        // Mostrar información de depuración
-        document.getElementById('debugContent').textContent = JSON.stringify(data, null, 2);
-
-        if (data.success) {
-          // Guardar usuario actual
-          SessionManager.setCurrentUser(email);
-
-          // Obtener la última transacción del usuario usando el endpoint backend
-          const txResponse = await fetch(`/api/payment-button/latest-transaction?userEmail=${encodeURIComponent(email)}`);
-          const txData = await txResponse.json();
-
-          if (txData.success && txData.transaction) {
-            if (displayTransactionDetails(txData.transaction)) {
-              return;
-            }
-          }
-
-          document.getElementById('loginSection').style.display = 'none';
-          document.getElementById('updateSection').style.display = 'block';
-        } else {
-          alert(data.error || 'Credenciales inválidas');
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        alert('Error de conexión o de formato de respuesta');
+    document.getElementById('updateButton').addEventListener('click', async () => {
+      const email = SessionManager.getCurrentUser();
+      const tx = await fetchTransaction(email);
+      if (tx) {
+        displayTransaction(tx);
+        if (tx.status !== 'PAGADO') startPolling(tx.transactionId || tx.internalId);
       }
     });
 
-    // Eventos de actualización
-    function setupUpdateButtons() {
-      // Evento de actualización en sección de actualización
-      document.getElementById('updateButton').addEventListener('click', async function() {
-        const currentUserEmail = SessionManager.getCurrentUser();
-        
-        if (!currentUserEmail) {
-          alert('No se ha iniciado sesión');
-          return;
-        }
+    window.addEventListener('message', event => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'PAYMENT_SUCCESS') {
+        displayTransaction(event.data.data);
+        document.getElementById('paymentStatus').innerHTML = `
+          <div class="alert alert-success">✅ Pago recibido<br><b>Fecha:</b> ${event.data.data.paid_at}</div>`;
+        document.getElementById('qrCodeImage').style.display = 'none';
+      }
+    });
 
-        try {
-          const latestTransaction = await fetchLatestTransactionForUser(currentUserEmail);
-          
-          if (latestTransaction) {
-            displayTransactionDetails(latestTransaction);
-          } else {
-            alert('No se encontraron transacciones para este usuario');
-          }
-        } catch (error) {
-          console.error('Error al actualizar:', error);
-          alert('Error al actualizar los datos');
-        }
-      });
-
-      // Evento de actualización en sección de detalles
-      document.getElementById('updateButtonDetail').addEventListener('click', async function() {
-        const currentUserEmail = SessionManager.getCurrentUser();
-        
-        if (!currentUserEmail) {
-          alert('No se ha iniciado sesión');
-          return;
-        }
-
-        try {
-          const latestTransaction = await fetchLatestTransactionForUser(currentUserEmail);
-          
-          if (latestTransaction) {
-            displayTransactionDetails(latestTransaction);
-          } else {
-            alert('No se encontraron transacciones para este usuario');
-          }
-        } catch (error) {
-          console.error('Error al actualizar:', error);
-          alert('Error al actualizar los datos');
-        }
-      });
+    function logout() {
+      SessionManager.clearSession();
+      location.reload();
     }
 
-    // Al cargar la página, intentar restaurar la última sesión
-    document.addEventListener('DOMContentLoaded', () => {
-      // Configurar eventos de actualización
-      setupUpdateButtons();
-
-      // Intentar recuperar el usuario actual
-      const currentUserEmail = SessionManager.getCurrentUser();
-      
-      if (currentUserEmail) {
-        // Intentar recuperar la última transacción almacenada
-        const storedTransaction = localStorage.getItem(`latestTransaction_${currentUserEmail}`);
-        
-        if (storedTransaction) {
-          try {
-            const transaction = JSON.parse(storedTransaction);
-            displayTransactionDetails(transaction);
-          } catch (error) {
-            console.error('Error al parsear transacción almacenada:', error);
-          }
+    document.addEventListener('DOMContentLoaded', async () => {
+      const email = SessionManager.getCurrentUser();
+      if (email) {
+        const tx = await fetchTransaction(email);
+        if (tx) {
+          displayTransaction(tx);
+          if (tx.status !== 'PAGADO') startPolling(tx.transactionId || tx.internalId);
         }
-      }
-    });
-
-    window.addEventListener('message', function(event) {
-      if (event.data && event.data.type === 'PAYMENT_SUCCESS') {
-        // Actualizar el estado visual
-        const statusElement = document.getElementById('transactionStatus');
-        if (statusElement) {
-          statusElement.textContent = 'PAGADO';
-          statusElement.className = 'badge bg-success';
-        }
-
-        // Mostrar mensaje de pago confirmado
-        document.getElementById('paymentStatus').innerHTML = `
-          <div class="alert alert-success">
-            <h4>✅ ¡Pago recibido!</h4>
-            <p>El pago fue confirmado correctamente.</p>
-            <hr>
-            <b>Fecha:</b> ${event.data.data.paid_at || new Date().toLocaleString()}<br>
-            <b>Cliente:</b> ${event.data.data.customer?.name || event.data.data.name || 'N/A'}<br>
-            <b>Email:</b> ${event.data.data.customer?.email || event.data.data.email || 'N/A'}<br>
-          </div>
-        `;
-
-        // Ocultar QR
-        const qrCodeImage = document.getElementById('qrCodeImage');
-        if (qrCodeImage) qrCodeImage.style.display = 'none';
       }
     });
   </script>
