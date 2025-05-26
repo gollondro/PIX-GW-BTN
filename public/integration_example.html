@@ -268,7 +268,7 @@
           // Escuchar mensajes de la ventana de pago
           window.addEventListener('message', function(event) {
             if (event.data.type === 'PAYMENT_SUCCESS') {
-              popup.close();
+              // popup.close();
               showSuccess('¡Pago confirmado exitosamente!');
             }
           });
