@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid'); // <-- ESTA LÍNEA DEBE ESTAR AQUÍ
 const router = express.Router();
 const { createPixChargeLink } = require('../services/rendixApi');
 const fetch = require('node-fetch'); // npm install node-fetch
+const { getExchangeRate } = require('../services/exchangeRateService'); // Agrega esta línea
 
 // Ruta para procesar pagos PIX
 router.post('/', async (req, res) => {
@@ -52,25 +53,16 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Leer archivo de tasa de cambio
-    const rateFile = path.join(__dirname, '../db/rate.json');
-    let rateCLPperUSD = 945; // Valor por defecto
-    
-    if (fs.existsSync(rateFile)) {
-      try {
-        const rateData = JSON.parse(fs.readFileSync(rateFile, 'utf8'));
-        rateCLPperUSD = rateData.rate || rateCLPperUSD;
-      } catch (error) {
-        console.error('❌ Error al leer el archivo de tasa:', error);
-      }
-    }
-    
-    // Calcular valor en USD si se proporciono CLP
+    // OBTENER TASA DE CAMBIO DESDE LA API EN LÍNEA
+    const rateCLPperUSD = await getExchangeRate();
+    console.log('💱 Usando tasa de cambio CLP/USD:', rateCLPperUSD);
+
+    // Calcular valor en USD si se proporcionó CLP
     if (amountCLP && !amountUSD) {
       amountUSD = (parseFloat(amountCLP) / rateCLPperUSD).toFixed(2);
     }
-    
-    // Calcular valor en CLP si se proporciono USD
+
+    // Calcular valor en CLP si se proporcionó USD
     if (amountUSD && !amountCLP) {
       amountCLP = (parseFloat(amountUSD) * rateCLPperUSD).toFixed(0);
     }

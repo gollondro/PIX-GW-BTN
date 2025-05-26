@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
-const { createPaymentLink } = require('../services/rendixApi'); // Importar el servicio de API
+const { createPaymentLink } = require('../services/rendixApi');
+const { getExchangeRate } = require('../services/exchangeRateService'); // Nuevo servicio
 
 // Ruta para procesar enlaces de pago PIX
 router.post('/', async (req, res) => {
@@ -32,17 +33,9 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Debe proporcionar un monto válido' });
     }
 
-    const rateFile = path.join(__dirname, '../db/rate.json');
-    let rateCLPperUSD = 945;
-
-    if (fs.existsSync(rateFile)) {
-      try {
-        const rateData = JSON.parse(fs.readFileSync(rateFile, 'utf8'));
-        rateCLPperUSD = rateData.rate || rateCLPperUSD;
-      } catch (error) {
-        console.error('❌ Error al leer el archivo de tasa:', error);
-      }
-    }
+    // Obtener tasa de cambio desde el servicio
+    const rateCLPperUSD = await getExchangeRate();
+    console.log('💱 Usando tasa de cambio CLP/USD:', rateCLPperUSD);
 
     if (amountCLP && !amountUSD) {
       amountUSD = (parseFloat(amountCLP) / rateCLPperUSD).toFixed(2);
@@ -55,7 +48,7 @@ router.post('/', async (req, res) => {
     const originalCurrency = currency || (amountCLP && !amountUSD ? 'CLP' : 'USD');
     const transactionId = uuidv4();
 
-    // --- Obtener operationCode del usuario ---
+    // Obtener operationCode del usuario
     let operationCode = 1; // Valor por defecto
     const usersFile = path.join(__dirname, '../db/users.json');
     let user = null;
@@ -70,7 +63,6 @@ router.post('/', async (req, res) => {
         console.warn('No se pudo leer operationCode del usuario, usando valor por defecto');
       }
     }
-    // ----------------------------------------
 
     const customer = { name, email, phone, cpf };
     const UrlWebhook = process.env.RENPIX_WEBHOOK || 'http://localhost:3000/api/webhook';
@@ -83,10 +75,11 @@ router.post('/', async (req, res) => {
       email,
       UrlWebhook: UrlWebhook,
       currencyCode: currency,
-      operationCode: operationCode, // Usar el operationCode del usuario
+      operationCode: operationCode,
       beneficiary: name
     };
     console.log('➡️ Payload enviado a Rendix (Link de Pago):', JSON.stringify(payload, null, 2));
+
     const linkResponse = await createPaymentLink({
       amountUSD,
       customer,
@@ -122,7 +115,8 @@ router.post('/', async (req, res) => {
       UrlWebhook,
       userEmail,
       description,
-      paymentMethod: 'link'
+      paymentMethod: 'link',
+      rateCLPperUSD // Guardar la tasa usada
     };
 
     const pendingFile = path.join(__dirname, '../db/pending.json');

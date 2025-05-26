@@ -18,6 +18,7 @@ app.use("/api/webhook", require("./routes/webhook"));
 app.use("/api/pending", require("./routes/pending"));
 app.use("/api/paid", require("./routes/paid"));
 app.use("/api/venta-tienda", require("./routes/ventaTienda"));
+app.use("/api/exchange-rate", require("./routes/exchangeRate")); // Nueva ruta de tasa de cambio
 const paymentButtonRoute = require('./routes/payment_button');
 app.use('/api/payment-button', paymentButtonRoute);
 app.use('/admin', express.static(path.join(__dirname, 'public')));

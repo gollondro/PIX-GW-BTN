@@ -598,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const paymentLinkBtn = document.getElementById('generatePaymentLinkBtn');
   if (paymentLinkBtn) {
-    paymentLinkBtn.addEventListener('click', function() {
+    paymentLinkBtn.addEventListener('click', async function() {
       const amountCLP = parseFloat(document.getElementById('amount').value);
       const name = document.getElementById('name').value;
       const email = document.getElementById('emailCliente').value;
@@ -607,12 +607,24 @@ document.addEventListener('DOMContentLoaded', function() {
       let currency = document.querySelector('input[name="currency"]:checked')?.value || 'CLP';
       let amount = amountCLP;
 
-      // Si la moneda es CLP, convertir a USD y enviar USD
+      // Si la moneda es CLP, obtener la tasa dinámica y convertir a USD
       if (currency === 'CLP') {
-        // Usa la tasa de cambio que tengas disponible (ejemplo: 945)
-        const rateCLPperUSD = 945; // Puedes obtenerla dinámicamente si lo prefieres
-        amount = (amountCLP / rateCLPperUSD).toFixed(2);
-        currency = 'USD';
+        try {
+          const rateRes = await fetch('/api/exchange-rate');
+          const rateData = await rateRes.json();
+          if (rateData.success && rateData.rate) {
+            const rateCLPperUSD = rateData.rate;
+            amount = (amountCLP / rateCLPperUSD).toFixed(2);
+            currency = 'USD';
+            debugLog(`💱 Tasa dinámica usada para link de pago: ${rateCLPperUSD}`);
+          } else {
+            throw new Error('No se pudo obtener la tasa de cambio');
+          }
+        } catch (err) {
+          alert('No se pudo obtener la tasa de cambio actual. Intente nuevamente.');
+          debugLog('❌ Error obteniendo tasa de cambio: ' + err.message, 'error');
+          return;
+        }
       }
 
       const qrResult = document.getElementById('qrResult');
