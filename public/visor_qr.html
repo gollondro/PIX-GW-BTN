@@ -89,6 +89,7 @@
           <h5>Detalles de la Transacción</h5>
           <p><strong>Monto USD:</strong> <span id="amountUSD"></span></p>
           <p><strong>ID Transacción:</strong> <span id="transactionId"></span></p>
+          <p><strong>Estado:</strong> <span id="transactionStatus" class="badge bg-warning">PENDIENTE</span></p>
         </div>
       </div>
 
@@ -209,27 +210,40 @@
         }
 
         try {
-          const response = await fetch(`/api/payment/status/${transactionId}`);
+          // Verificar estado en transacciones de botón
+          const response = await fetch(`/api/payment-button/transaction/${transactionId}`);
           const result = await response.json();
 
-          if (result.paid) {
+          if (result.success && result.transaction.status === 'PAGADO') {
             stopPolling();
+
+            // Actualizar el estado visual
+            const statusElement = document.getElementById('transactionStatus');
+            statusElement.textContent = 'PAGADO';
+            statusElement.className = 'badge bg-success';
 
             // Mostrar confirmación
             document.getElementById('paymentStatus').innerHTML = `
               <div class="alert alert-success">
-                <h4>✅ Pago confirmado</h4>
+                <h4>✅ ¡Pago confirmado!</h4>
                 <p>Su pago ha sido procesado exitosamente.</p>
                 <hr>
-                <b>Monto:</b> ${result.data.amountUSD} USD<br>
-                <b>Fecha:</b> ${result.data.paid_at || new Date().toLocaleString()}<br>
-                <b>Cliente:</b> ${result.data.name || 'N/A'}<br>
-                <b>Email:</b> ${result.data.email || 'N/A'}
+                <b>Monto:</b> ${result.transaction.amountUSD} USD<br>
+                <b>Fecha:</b> ${result.transaction.paid_at ? new Date(result.transaction.paid_at).toLocaleString() : new Date().toLocaleString()}<br>
+                <b>Cliente:</b> ${result.transaction.customer?.name || 'N/A'}<br>
+                <b>Email:</b> ${result.transaction.customer?.email || 'N/A'}
               </div>
             `;
 
-            // Actualizar los detalles visuales
-            updateTransactionDetailsAfterPayment(result.data);
+            // Ocultar QR ya que el pago fue confirmado
+            const qrCodeImage = document.getElementById('qrCodeImage');
+            if (qrCodeImage) qrCodeImage.style.display = 'none';
+
+            // Actualizar la transacción almacenada
+            const currentUserEmail = SessionManager.getCurrentUser();
+            if (currentUserEmail) {
+              localStorage.setItem(`latestTransaction_${currentUserEmail}`, JSON.stringify(result.transaction));
+            }
           }
         } catch (error) {
           console.error('Error en polling:', error);
@@ -261,6 +275,7 @@
     }
 
     // Modificar la función de mostrar detalles para añadir polling automático
+    // Modifica la función displayTransactionDetails para incluir el estado
     function displayTransactionDetails(transaction) {
       if (!transaction) {
         alert('No se encontraron transacciones para este usuario');
@@ -272,6 +287,21 @@
       document.getElementById('amountUSD').textContent = transaction.amountUSD || 'N/A';
       document.getElementById('transactionId').textContent = transaction.internalId || transaction.id || 'N/A';
       
+      // Mostrar estado de la transacción
+      const statusElement = document.getElementById('transactionStatus');
+      const status = transaction.status || 'PENDIENTE';
+      statusElement.textContent = status;
+      
+      // Aplicar estilos según el estado
+      statusElement.className = 'badge';
+      if (status === 'PAGADO') {
+        statusElement.classList.add('bg-success');
+      } else if (status === 'PENDIENTE') {
+        statusElement.classList.add('bg-warning');
+      } else {
+        statusElement.classList.add('bg-secondary');
+      }
+
       // Detalles del cliente
       const customer = transaction.customer || {};
       document.getElementById('customerName').textContent = customer.name || 'N/A';
@@ -301,8 +331,22 @@
       // Añadir elemento de estado de pago
       setupPaymentStatusElement();
 
-      // Iniciar polling
-      startPaymentPolling(transaction);
+      // Solo iniciar polling si el estado no es PAGADO
+      if (status !== 'PAGADO') {
+        startPaymentPolling(transaction);
+      } else {
+        // Si ya está pagado, mostrar mensaje de confirmación
+        document.getElementById('paymentStatus').innerHTML = `
+          <div class="alert alert-success">
+            <h4>✅ ¡Pago confirmado!</h4>
+            <p>Esta transacción ya ha sido pagada.</p>
+            <hr>
+            <b>Fecha:</b> ${transaction.paid_at ? new Date(transaction.paid_at).toLocaleString() : 'N/A'}<br>
+            <b>Cliente:</b> ${customer.name || 'N/A'}<br>
+            <b>Email:</b> ${customer.email || 'N/A'}
+          </div>
+        `;
+      }
 
       return true;
     }
@@ -434,17 +478,28 @@
 
     window.addEventListener('message', function(event) {
       if (event.data && event.data.type === 'PAYMENT_SUCCESS') {
-        // Mostrar mensaje de pago confirmado en el visor QR
+        // Actualizar el estado visual
+        const statusElement = document.getElementById('transactionStatus');
+        if (statusElement) {
+          statusElement.textContent = 'PAGADO';
+          statusElement.className = 'badge bg-success';
+        }
+
+        // Mostrar mensaje de pago confirmado
         document.getElementById('paymentStatus').innerHTML = `
           <div class="alert alert-success">
             <h4>✅ ¡Pago recibido!</h4>
             <p>El pago fue confirmado correctamente.</p>
             <hr>
-            <b>Fecha:</b> ${event.data.data.paid_at || ''}<br>
-            <b>Cliente:</b> ${event.data.data.name || ''}<br>
-            <b>Email:</b> ${event.data.data.email || ''}<br>
+            <b>Fecha:</b> ${event.data.data.paid_at || new Date().toLocaleString()}<br>
+            <b>Cliente:</b> ${event.data.data.customer?.name || event.data.data.name || 'N/A'}<br>
+            <b>Email:</b> ${event.data.data.customer?.email || event.data.data.email || 'N/A'}<br>
           </div>
         `;
+
+        // Ocultar QR
+        const qrCodeImage = document.getElementById('qrCodeImage');
+        if (qrCodeImage) qrCodeImage.style.display = 'none';
       }
     });
   </script>
