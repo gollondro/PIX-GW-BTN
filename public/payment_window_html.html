@@ -202,6 +202,7 @@
     let countdownInterval = null;
     let expiresAt = null;
     let transactionData = null;
+    let statusPolling = null;
 
     // Obtener ID de la transacción de la URL
     const pathParts = window.location.pathname.split('/');
@@ -226,6 +227,12 @@
         // Guardar datos de la transacción para compartir
         transactionData = data.transaction;
 
+        // Verificar si ya está pagado
+        if (transactionData.status === 'PAGADO') {
+          procesarConfirmacionPago(transactionData);
+          return;
+        }
+
         // Mostrar datos de la transacción
         displayPaymentData(transactionData);
 
@@ -236,15 +243,147 @@
         addShareQRButton();
 
         // Iniciar polling de estado de pago
-        startPolling(transactionId);        // Ya tienes esta función definida
+        startPolling(transactionId);
 
         // Configurar enlace de visor QR
         setupQRViewerLink();
+
+        // Iniciar polling específico para confirmación de pago
+        startPaymentStatusPolling(transactionId);
 
       } catch (error) {
         console.error('Error loading payment data:', error);
         showError(error.message);
       }
+    }
+
+    // Función para procesar la confirmación de pago (SIN cerrar ventana)
+    function procesarConfirmacionPago(transactionData) {
+      console.log('🎉 Procesando confirmación de pago:', transactionData);
+
+      // Detener todos los intervalos de polling
+      if (pollingInterval) clearInterval(pollingInterval);
+      if (statusPolling) clearInterval(statusPolling);
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      // Ocultar secciones de QR y carga
+      const pixQrContainer = document.getElementById('pixQrContainer');
+      const qrCodeImage = document.getElementById('pixQrImg');
+      const pixCode = document.getElementById('pixCode');
+      const paymentLinkSection = document.getElementById('paymentLinkSection');
+
+      if (pixQrContainer) pixQrContainer.style.display = 'none';
+      if (qrCodeImage) qrCodeImage.style.display = 'none';
+      if (pixCode) pixCode.style.display = 'none';
+      if (paymentLinkSection) paymentLinkSection.style.display = 'none';
+
+      // Ocultar el contador global
+      const globalCountdown = document.getElementById('globalCountdown');
+      if (globalCountdown) {
+        globalCountdown.style.display = 'none';
+      }
+
+      // Crear o actualizar la sección de confirmación de pago
+      let paymentConfirmationSection = document.getElementById('paymentConfirmationSection');
+      if (!paymentConfirmationSection) {
+        paymentConfirmationSection = document.createElement('div');
+        paymentConfirmationSection.id = 'paymentConfirmationSection';
+        paymentConfirmationSection.className = 'alert alert-success text-center mt-4';
+        
+        const paymentSection = document.getElementById('paymentSection') || document.body;
+        paymentSection.appendChild(paymentConfirmationSection);
+      }
+
+      // Contenido de la confirmación de pago
+      paymentConfirmationSection.innerHTML = `
+        <div class="container">
+          <h2 class="mb-4">✅ Pago Confirmado</h2>
+          <div class="alert alert-success">
+            <h4>¡El pago ha sido procesado exitosamente!</h4>
+          </div>
+          <div class="row">
+            <div class="col-md-6 text-start">
+              <h5>Detalles del Pago</h5>
+              <p><strong>ID Transacción:</strong> ${transactionData.internalId}</p>
+              <p><strong>Monto:</strong> $${transactionData.amountUSD} USD</p>
+              <p><strong>Fecha:</strong> ${new Date(transactionData.paid_at || new Date()).toLocaleString()}</p>
+              <p><strong>Estado:</strong> <span class="badge bg-success">PAGADO</span></p>
+            </div>
+            <div class="col-md-6 text-start">
+              <h5>Información del Cliente</h5>
+              <p><strong>Nombre:</strong> ${transactionData.customer?.name || 'N/A'}</p>
+              <p><strong>Email:</strong> ${transactionData.customer?.email || 'N/A'}</p>
+              <p><strong>Teléfono:</strong> ${transactionData.customer?.phone || 'N/A'}</p>
+              <p><strong>CPF:</strong> ${transactionData.customer?.cpf || 'N/A'}</p>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button id="notifyParentBtn" class="btn btn-primary me-2">Notificar a Ventana Padre</button>
+            <button id="printReceiptBtn" class="btn btn-secondary">Imprimir Recibo</button>
+          </div>
+        </div>
+      `;
+
+      paymentConfirmationSection.style.display = 'block';
+
+      // Configurar botones
+      const notifyParentBtn = document.getElementById('notifyParentBtn');
+      const printReceiptBtn = document.getElementById('printReceiptBtn');
+
+      if (notifyParentBtn) {
+        notifyParentBtn.addEventListener('click', () => {
+          if (window.opener) {
+            window.opener.postMessage({ 
+              type: 'PAYMENT_SUCCESS', 
+              transactionId: transactionData.internalId,
+              data: transactionData 
+            }, '*');
+            alert('Notificación enviada a la ventana padre');
+          } else {
+            alert('No hay ventana padre para notificar');
+          }
+        });
+      }
+
+      if (printReceiptBtn) {
+        printReceiptBtn.addEventListener('click', () => {
+          window.print();
+        });
+      }
+
+      // Notificar automáticamente a la ventana padre si existe
+      if (window.opener) {
+        window.opener.postMessage({ 
+          type: 'PAYMENT_SUCCESS', 
+          transactionId: transactionData.internalId,
+          data: transactionData 
+        }, '*');
+      }
+    }
+
+    // Función para verificar estado de pago
+    function startPaymentStatusPolling(transactionId) {
+      statusPolling = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/payment-button/transaction/${transactionId}`);
+          const data = await response.json();
+
+          if (data.success && data.transaction.status === 'PAGADO') {
+            clearInterval(statusPolling);
+            procesarConfirmacionPago(data.transaction);
+          }
+        } catch (error) {
+          console.error('Error en polling de estado:', error);
+        }
+      }, 3000); // Verificar cada 3 segundos
+
+      // Tiempo máximo de polling (10 minutos)
+      setTimeout(() => {
+        if (statusPolling) {
+          clearInterval(statusPolling);
+          console.warn('⏰ Tiempo máximo de polling alcanzado');
+        }
+      }, 10 * 60 * 1000);
     }
 
     function addShareQRButton() {
