@@ -88,6 +88,8 @@
     }
 
     function displayTransaction(tx) {
+      document.getElementById('paymentStatus').innerHTML = ''; // Limpiar estado previo
+
       document.getElementById('userEmail').textContent = tx.userEmail;
       document.getElementById('transactionId').textContent = tx.internalId || tx.transactionId;
       document.getElementById('amountUSD').textContent = `${tx.amountUSD} USD`;
