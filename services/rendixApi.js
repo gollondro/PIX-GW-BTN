@@ -96,7 +96,7 @@ async function createPixChargeLink({ amountUSD, customer, controlNumber, operati
       controlNumber: controlNumber,
       phone: customer.phone,
       email: customer.email,
-      webhook: process.env.RENPIX_WEBHOOK || "http://localhost:3000/api/webhook",
+      UrlWebhook: process.env.RENPIX_WEBHOOK || "http://localhost:3000/api/webhook",
       currencyCode: 'USD',
       operationCode: operationCode, // Usar operationCode recibido
       beneficiary: customer.name
