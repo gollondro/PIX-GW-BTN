@@ -368,7 +368,7 @@ async function cargarUsuariosParaFiltro() {
 
 async function cargarTransaccionesLinkPago() {
   const tableBody = document.querySelector('#paymentLinksTable tbody');
-  tableBody.innerHTML = '<tr><td colspan="9">Cargando...</td></tr>';
+  tableBody.innerHTML = '<tr><td colspan="7">Cargando...</td></tr>';
   try {
     const res = await fetch('/api/payment/links');
     const data = await res.json();
@@ -393,19 +393,19 @@ async function cargarTransaccionesLinkPago() {
             <td>${tx.id}</td>
             <td>${tx.name || ''}</td>
             <td>${tx.email || ''}</td>
-            <td>${montoCLP}</td>
+            
             <td>${montoUSD}</td>
-            <td>${montoBRL}</td>
+           
             <td>${tx.status || ''}</td>
             <td>${tx.userEmail || '-'}</td>
           </tr>
         `;
       });
     } else {
-      tableBody.innerHTML = '<tr><td colspan="9">No hay transacciones de link de pago.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="7">No hay transacciones de link de pago.</td></tr>';
     }
   } catch (e) {
-    tableBody.innerHTML = '<tr><td colspan="9">Error al cargar transacciones.</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="7">Error al cargar transacciones.</td></tr>';
   }
 }
 

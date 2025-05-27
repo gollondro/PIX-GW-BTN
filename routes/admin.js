@@ -401,13 +401,13 @@ async function cargarTransaccionesLinkPago() {
       data.forEach(tx => {
         tableBody.innerHTML += `
           <tr>
+            <td>${tx.fecha}</td>
             <td>${tx.id}</td>
-            <td>${tx.name}</td>
+            <td>${tx.cliente}</td>
             <td>${tx.email}</td>
-            <td>${tx.amount}</td>
-            <td>${tx.currency}</td>
-            <td>${tx.date ? tx.date.substring(0, 19).replace('T', ' ') : ''}</td>
-            <td>${tx.status || ''}</td>
+            <td>${tx.montoUSD}</td>
+            <td>${tx.estado}</td>
+            <td>${tx.usuario}</td>
           </tr>
         `;
       });
