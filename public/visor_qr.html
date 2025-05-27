@@ -104,9 +104,16 @@
 
       const qr = tx.qrData || {};
       const qrImg = document.getElementById('qrCodeImage');
-      qrImg.src = qr.qrCodeBase64 ? `data:image/png;base64,${qr.qrCodeBase64}` : '';
-      qrImg.style.display = qr.qrCodeBase64 ? 'block' : 'none';
-      document.getElementById('pixCode').textContent = qr.pixCopyPast || '-';
+      
+      // Solo mostrar QR si el estado NO es PAGADO
+      if (tx.status !== 'PAGADO' && qr.qrCodeBase64) {
+        qrImg.src = `data:image/png;base64,${qr.qrCodeBase64}`;
+        qrImg.style.display = 'block';
+        document.getElementById('pixCode').textContent = qr.pixCopyPast || '-';
+      } else {
+        qrImg.style.display = 'none';
+        document.getElementById('pixCode').textContent = tx.status === 'PAGADO' ? 'Pago completado' : '-';
+      }
 
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('transactionDetails').style.display = 'block';
