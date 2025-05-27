@@ -36,7 +36,7 @@ class Database {
   }
 
   isEnabled() {
-    return this.useDatabase;
+    return process.env.USE_DATABASE === 'true';
   }
 
   async close() {

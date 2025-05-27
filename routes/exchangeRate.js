@@ -1,7 +1,12 @@
 // routes/exchangeRate.js
 const express = require('express');
 const router = express.Router();
-const { getExchangeRate, forceRefreshRate, getCacheInfo } = require('../services/exchangeRateService');
+const { 
+  getExchangeRate, 
+  forceRefreshRate, 
+  getCacheInfo,
+  getRateHistory 
+} = require('../services/exchangeRateService');
 
 // Obtener la tasa actual
 router.get('/', async (req, res) => {
@@ -45,6 +50,27 @@ router.post('/refresh', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error al actualizar tasa de cambio',
+      details: error.message
+    });
+  }
+});
+
+// Obtener historial (nueva ruta)
+router.get('/history', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    const history = await getRateHistory(days);
+    
+    res.json({
+      success: true,
+      history,
+      count: history.length
+    });
+  } catch (error) {
+    console.error('Error al obtener historial:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener historial',
       details: error.message
     });
   }

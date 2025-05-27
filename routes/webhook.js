@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const router = express.Router();
+const transactionRepository = require('../repositories/transactionRepository');
 
 // Webhook para recibir notificaciones de pagos
 router.post('/', async (req, res) => {
@@ -17,6 +18,27 @@ router.post('/', async (req, res) => {
         success: false,
         error: 'Se requiere transactionId y status'
       });
+    }
+
+    // Si tienes base de datos habilitada, usa el repositorio:
+    if (transactionRepository.db.isEnabled()) {
+      try {
+        // Busca la transacción por ID
+        const tx = await transactionRepository.findById(transactionId);
+        if (!tx) {
+          return res.status(404).json({ success: false, error: 'Transacción no encontrada en DB' });
+        }
+        // Actualiza el estado y guarda webhook_data
+        tx.status = (status === 'PAID' || status === 'COMPLETED' || status === 'APROVADO') ? 'PAGADO' : status;
+        tx.paid_at = new Date().toISOString();
+        tx.webhook_data = req.body;
+        await transactionRepository.updateById(transactionId, tx);
+        console.log(`✅ Transacción ${transactionId} actualizada en DB como ${tx.status}`);
+        return res.json({ success: true, message: 'Transacción actualizada correctamente en DB' });
+      } catch (error) {
+        console.error('❌ Error actualizando transacción en DB:', error);
+        return res.status(500).json({ success: false, error: 'Error actualizando en DB' });
+      }
     }
 
     // Definir rutas de archivos

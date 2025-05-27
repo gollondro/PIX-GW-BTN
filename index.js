@@ -1,10 +1,8 @@
+require('dotenv').config();
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
-const dotenv = require("dotenv");
-
-// Cargar dotenv primero
-dotenv.config();
 
 // Luego acceder a las variables de entorno
 console.log('API URL:', process.env.RENPIX_API_URL);
@@ -41,3 +39,8 @@ app.listen(PORT, () => {
   const usersRoutes = require('./routes/users');
   app.use('/api/users', usersRoutes);
 });
+
+function isEnabled() {
+  return process.env.USE_DATABASE === 'true';
+}
+module.exports = { isEnabled };

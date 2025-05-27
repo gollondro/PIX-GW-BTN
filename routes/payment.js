@@ -6,6 +6,7 @@ const router = express.Router();
 const { createPixChargeLink } = require('../services/rendixApi');
 const fetch = require('node-fetch'); // npm install node-fetch
 const { getExchangeRate } = require('../services/exchangeRateService'); // Agrega esta línea
+const transactionRepository = require('../repositories/transactionRepository');
 
 // Ruta para procesar pagos PIX
 router.post('/', async (req, res) => {
@@ -201,9 +202,12 @@ router.post('/', async (req, res) => {
       date: new Date().toISOString(),
       status: 'PENDIENTE',
       originalCurrency,
-      UrlWebhook, // Guardar la URL del webhook para referencia
-      userEmail   // Guardar el email del usuario que generó la cotización
+      UrlWebhook,
+      userEmail
     };
+    
+    // Guarda usando el repositorio (usa DB si está habilitada)
+    await transactionRepository.create(transaction);
     
     // Guardar en la base de datos de transacciones pendientes
     const pendingFile = path.join(__dirname, '../db/pending.json');

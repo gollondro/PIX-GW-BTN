@@ -1,10 +1,15 @@
-
 const express = require('express');
-const fs = require('fs');
 const router = express.Router();
+const transactionRepository = require('../repositories/transactionRepository');
 
-router.get('/', (req, res) => {
-  const pending = fs.existsSync('./db/pending.json') ? JSON.parse(fs.readFileSync('./db/pending.json')) : [];
-  res.json(pending);
+router.get('/', async (req, res) => {
+  try {
+    const pending = await transactionRepository.findPending();
+    res.json(pending);
+  } catch (error) {
+    console.error('Error al obtener transacciones pendientes:', error);
+    res.status(500).json({ error: 'Error al obtener transacciones' });
+  }
 });
+
 module.exports = router;
