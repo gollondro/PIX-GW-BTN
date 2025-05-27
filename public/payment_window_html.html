@@ -172,20 +172,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Visor QR Section -->
-        <div id="qrViewerSection" class="mt-4 text-center">
-          <h6 class="text-afex mb-3">🔍 Compartir Datos de Transacción</h6>
-          <div class="input-group mb-3">
-            <input type="text" id="qrViewerLink" class="form-control" placeholder="URL del Visor QR" readonly>
-            <button class="btn btn-secondary" type="button" onclick="copyViewerLink()">Copiar</button>
-          </div>
-          <button class="btn btn-success w-100 mb-2" onclick="shareQRData()">Actualizar datos para visor QR</button>
-          <p class="text-muted small">
-            Comparte este enlace con quien desees que visualice los datos de la transacción.<br>
-            Haz clic en "Actualizar datos para visor QR" antes de abrir el visor.
-          </p>
-        </div>
       </div>
     </div>
   </div>
@@ -224,7 +210,7 @@
           throw new Error(data.error || 'Error al cargar datos de la transacción');
         }
 
-        // Guardar datos de la transacción para compartir
+        // Guardar datos de la transacción
         transactionData = data.transaction;
 
         // Verificar si ya está pagado
@@ -239,14 +225,8 @@
         // Generar QR dinámicamente
         await generateQRCode(transactionData);
 
-        // Añadir botón para compartir datos del QR
-        addShareQRButton();
-
         // Iniciar polling de estado de pago
         startPolling(transactionId);
-
-        // Configurar enlace de visor QR
-        setupQRViewerLink();
 
         // Iniciar polling específico para confirmación de pago
         startPaymentStatusPolling(transactionId);
@@ -384,57 +364,6 @@
           console.warn('⏰ Tiempo máximo de polling alcanzado');
         }
       }, 10 * 60 * 1000);
-    }
-
-    function addShareQRButton() {
-      const paymentBody = document.querySelector('.payment-body');
-      const shareButton = document.createElement('button');
-      shareButton.className = 'btn btn-success mt-3 w-100';
-      shareButton.textContent = 'Enviar datos a Visor QR';
-      shareButton.addEventListener('click', shareQRData);
-      paymentBody.appendChild(shareButton);
-    }
-
-    function setupQRViewerLink() {
-      // Generar un enlace único para compartir
-      const qrViewerLink = document.getElementById('qrViewerLink');
-      qrViewerLink.value = `${window.location.origin}/visor_qr.html`;
-    }
-
-    function copyViewerLink() {
-      const qrViewerLink = document.getElementById('qrViewerLink');
-      qrViewerLink.select();
-      document.execCommand('copy');
-      // Mostrar mensaje temporal de copiado
-      const originalText = qrViewerLink.value;
-      qrViewerLink.value = '¡Enlace copiado!';
-      setTimeout(() => {
-        qrViewerLink.value = originalText;
-      }, 2000);
-    }
-
-    function shareQRData() {
-      if (!transactionData) {
-        alert('Datos de transacción no disponibles');
-        return;
-      }
-
-      // Preparar datos para compartir
-      const shareData = {
-        userEmail: transactionData.userEmail,
-        amountUSD: transactionData.amountUSD,
-        transactionId: transactionId,
-        customerName: transactionData.customer.name,
-        customerEmail: transactionData.customer.email,
-        customerPhone: transactionData.customer.phone,
-        customerCpf: transactionData.customer.cpf,
-        qrCodeBase64: transactionData.qrData?.qrCodeBase64 || '',
-        pixCopyPast: transactionData.qrData?.pixCopyPast || ''
-      };
-
-      // Almacenar en localStorage para que el visor QR pueda acceder
-      localStorage.setItem('sharedTransactionData', JSON.stringify(shareData));
-      alert('Datos actualizados para el visor QR.');
     }
 
     async function generateQRCode(transaction) {
@@ -697,83 +626,6 @@
       if (transactionId) {
         startPaymentPolling(transactionId); // Para el status visual
         startPolling(transactionId);        // Para el mensaje de pago recibido y notificación
-      }
-    });
-
-    // Función para procesar la confirmación de pago
-    function procesarConfirmacionPago(transactionData) {
-      // Ocultar secciones de carga y QR si existen
-      const loadingSection = document.getElementById('loadingSection');
-      if (loadingSection) loadingSection.style.display = 'none';
-      const qrResult = document.getElementById('qrResult');
-      if (qrResult) qrResult.style.display = 'none';
-
-      // Mostrar sección de pago confirmado
-      const paymentConfirmationSection = document.createElement('div');
-      paymentConfirmationSection.className = 'alert alert-success text-center';
-      paymentConfirmationSection.innerHTML = `
-        <h4>✅ ¡Pago recibido!</h4>
-        <p>El pago fue confirmado correctamente.</p>
-        <hr>
-        <b>Monto:</b> $${transactionData.amountUSD} USD<br>
-        <b>Fecha:</b> ${transactionData.paid_at ? new Date(transactionData.paid_at).toLocaleString() : ''}<br>
-        <b>Cliente:</b> ${transactionData.customer?.name || ''}<br>
-        <b>Email:</b> ${transactionData.customer?.email || ''}<br>
-      `;
-
-      // Insertar la confirmación en el contenedor principal
-      const paymentSection = document.getElementById('paymentSection');
-      paymentSection.innerHTML = ''; // Limpiar contenido previo
-      paymentSection.appendChild(paymentConfirmationSection);
-      paymentSection.style.display = 'block';
-
-      // Ocultar el contador global
-      const globalCountdown = document.getElementById('globalCountdown');
-      if (globalCountdown) globalCountdown.style.display = 'none';
-
-      // Notificar a la ventana padre si está en un popup
-      if (window.opener) {
-        window.opener.postMessage({ 
-          type: 'PAYMENT_SUCCESS', 
-          transactionId: transactionData.internalId,
-          data: transactionData 
-        }, '*');
-      }
-    }
-
-    // Función para verificar el estado de la transacción
-    async function checkTransactionStatus(transactionId) {
-      try {
-        const response = await fetch(`/api/payment/status/${transactionId}`);
-        const result = await response.json();
-
-        if (result.paid && result.data) {
-          procesarConfirmacionPago(result.data);
-        }
-      } catch (error) {
-        console.error('Error al verificar estado de transacción:', error);
-      }
-    }
-
-    // Modificar el script de carga para incluir verificación de estado
-    document.addEventListener('DOMContentLoaded', () => {
-      const pathParts = window.location.pathname.split('/');
-      const transactionId = pathParts[pathParts.length - 1];
-
-      if (transactionId) {
-        // Llamar a la función de verificación de estado cada 3 segundos
-        const statusPolling = setInterval(async () => {
-          const response = await fetch(`/api/payment-button/transaction/${transactionId}`);
-          const data = await response.json();
-
-          if (data.success && data.transaction.status === 'PAGADO') {
-            clearInterval(statusPolling);
-            procesarConfirmacionPago(data.transaction);
-          }
-        }, 3000);
-
-        // Detener el polling después de 5 minutos
-        setTimeout(() => clearInterval(statusPolling), 5 * 60 * 1000);
       }
     });
 
