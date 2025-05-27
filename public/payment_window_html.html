@@ -3,263 +3,784 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Visor QR - Transacciones PIX</title>
+  <title>Pago PIX - Afex</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
-    body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; display: flex; flex-direction: column; justify-content: center; }
-    .login-container, .visor-container { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin: 0 auto; }
-    .login-container { max-width: 400px; }
-    .visor-container { max-width: 800px; }
-    .debug-info { background-color: #f4f4f4; border: 1px solid #ddd; padding: 10px; margin-top: 15px; word-break: break-word; font-size: 0.8em; }
-    #transactionDetails { display: none; }
+    .bg-afex { background-color: #00A859; }
+    .text-afex { color: #00A859; }
+    .btn-afex { background-color: #00A859; color: #fff; border: none; }
+    .btn-afex:hover { background-color: #007a4d; color: #fff; }
+    
+    body { 
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .payment-container {
+      max-width: 500px;
+      margin: 2rem auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      overflow: hidden;
+      flex-grow: 1;
+    }
+    
+    .payment-header {
+      background: linear-gradient(135deg, #00A859 0%, #007a4d 100%);
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    
+    .payment-body {
+      padding: 2rem;
+    }
+    
+    .qr-container {
+      text-align: center;
+      margin: 1.5rem 0;
+    }
+    
+    .qr-image {
+      max-width: 250px;
+      border: 3px solid #00A859;
+      border-radius: 10px;
+      padding: 10px;
+      background: white;
+      box-shadow: 0 5px 15px rgba(0,168,89,0.2);
+    }
+    
+    #globalCountdown {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: #f8d7da;
+      color: #721c24;
+      text-align: center;
+      padding: 10px;
+      font-weight: bold;
+      z-index: 1000;
+      transition: background-color 0.5s ease;
+    }
+
+    #globalCountdown.warning {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+
+    #globalCountdown.danger {
+      background-color: #f8d7da;
+      color: #721c24;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    #loadingQR {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 250px;
+      flex-direction: column;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div id="loginSection" class="login-container">
-      <h3 class="text-center mb-4">Visor QR - Login</h3>
-      <form id="loginForm">
-        <div class="mb-3">
-          <label for="loginEmail" class="form-label">Email</label>
-          <input type="email" class="form-control" id="loginEmail" required>
-        </div>
-        <div class="mb-3">
-          <label for="loginPassword" class="form-label">Contraseña</label>
-          <input type="password" class="form-control" id="loginPassword" required>
-        </div>
-        <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
-      </form>
-      <div class="debug-info">
-        <h5>Depuración</h5>
-        <pre id="debugContent"></pre>
-      </div>
+  <div class="payment-container">
+    <div class="payment-header">
+      <img src="/img/afex-logo.png" alt="Afex" height="40" class="mb-2">
+      <h4 class="mb-0">Pago con PIX</h4>
+      <small>Procesado por Afex</small>
     </div>
-
-    <div id="transactionDetails" class="visor-container">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="mb-0">Detalles de la Transacción</h3>
-        <button onclick="logout()" class="btn btn-danger">Cerrar Sesión</button>
-      </div>
-      <div class="row">
-        <div class="col-md-6">
-          <h5>Comercio</h5>
-          <p><strong>Email:</strong> <span id="userEmail"></span></p>
-          <p><strong>ID Transacción:</strong> <span id="transactionId"></span></p>
-          <p><strong>Monto USD:</strong> <span id="amountUSD"></span></p>
-          <p><strong>Estado:</strong> <span id="transactionStatus" class="badge bg-warning">PENDIENTE</span></p>
-        </div>
-        <div class="col-md-6">
-          <h5>Cliente</h5>
-          <p><strong>Nombre:</strong> <span id="customerName"></span></p>
-          <p><strong>Email:</strong> <span id="customerEmail"></span></p>
-          <p><strong>Teléfono:</strong> <span id="customerPhone"></span></p>
-          <p><strong>CPF:</strong> <span id="customerCpf"></span></p>
+    
+    <div class="payment-body">
+      <div id="loadingSection">
+        <div class="text-center">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+          <p class="mt-2">Cargando información del pago...</p>
         </div>
       </div>
-      <div class="row mt-4">
-        <div class="col-md-6">
-          <img id="qrCodeImage" src="" alt="QR Code" class="img-fluid" style="max-height: 250px;">
-          <p><strong>Código PIX:</strong> <span id="pixCode" style="word-break: break-all;"></span></p>
-          <div id="countdownTimer" class="alert alert-info mt-3" style="display: none;">
-            <h5 class="mb-2">⏱️ Tiempo restante para pagar:</h5>
-            <h3 id="timeRemaining" class="text-center mb-0">5:00</h3>
+      
+      <div id="paymentSection" style="display: none;">
+        <!-- Información del cliente -->
+        <div class="info-card">
+          <h6 class="text-afex mb-2">📄 Información del Pago</h6>
+          <div class="row">
+            <div class="col-6">
+              <small class="text-muted">Cliente:</small><br>
+              <strong id="customerName">-</strong>
+            </div>
+            <div class="col-6">
+              <small class="text-muted">Email:</small><br>
+              <strong id="customerEmail">-</strong>
+            </div>
           </div>
         </div>
-        <div class="col-md-6">
-          <button id="updateButton" class="btn btn-success w-100">🔄 Actualizar Datos</button>
+        
+        <!-- Montos y tasa de cambio -->
+        <div class="info-card">
+          <h6 class="text-afex mb-2">💰 Detalles del Monto</h6>
+          <div class="amount-display" id="amountUSD">$0.00 USD</div>
+          <div class="row text-center">
+            <div class="col-6">
+              <small class="text-muted">Tasa USD → BRL (vet)</small><br>
+              <strong id="usdToBrlRate">0</strong>
+            </div>
+            <div class="col-6">
+              <small class="text-muted">BRL (Cliente paga)</small><br>
+              <strong class="text-success" id="amountBRL">R$ 0.00</strong>
+            </div>
+          </div>
+        </div>
+        
+        <!-- QR Container con loading -->
+        <div class="qr-container">
+          <div id="loadingQR">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Generando QR...</span>
+            </div>
+            <p class="mt-2">Generando código QR...</p>
+          </div>
+          
+          <div id="pixQrContainer" style="display:none;">
+            <img id="pixQrImg" class="qr-image" src="" alt="QR PIX" />
+            <div class="mt-2">
+              <b>Código de transacción:</b>
+              <span id="pixCode"></span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Enlace de pago (si está disponible) -->
+        <div id="paymentLinkSection" style="display: none;">
+          <h6 class="text-afex">🔗 Enlace de Pago PIX:</h6>
+          <div class="d-flex">
+            <div class="payment-link flex-grow-1" id="paymentLink">-</div>
+            <button class="btn btn-outline-afex copy-button ms-2" onclick="copyPaymentLink()">
+              📋 Copiar
+            </button>
+          </div>
+        </div>
+
+        <!-- Visor QR Section -->
+        <div id="qrViewerSection" class="mt-4 text-center">
+          <h6 class="text-afex mb-3">🔍 Compartir Datos de Transacción</h6>
+          <div class="input-group mb-3">
+            <input type="text" id="qrViewerLink" class="form-control" placeholder="URL del Visor QR" readonly>
+            <button class="btn btn-secondary" type="button" onclick="copyViewerLink()">Copiar</button>
+          </div>
+          <button class="btn btn-success w-100 mb-2" onclick="shareQRData()">Actualizar datos para visor QR</button>
+          <p class="text-muted small">
+            Comparte este enlace con quien desees que visualice los datos de la transacción.<br>
+            Haz clic en "Actualizar datos para visor QR" antes de abrir el visor.
+          </p>
         </div>
       </div>
-      <div id="paymentStatus" class="mt-4"></div>
     </div>
   </div>
 
+  <!-- Global Countdown Timer -->
+  <div id="globalCountdown">
+    Tiempo restante para completar el pago: 05:00
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    let transactionId = null;
     let pollingInterval = null;
     let countdownInterval = null;
-    let countdownSeconds = 300; // 5 minutos en segundos
+    let expiresAt = null;
+    let transactionData = null;
+    let statusPolling = null;
 
-    const SessionManager = {
-      setCurrentUser: email => {
-        sessionStorage.setItem('currentUserEmail', email);
-        localStorage.setItem('currentUserEmail', email);
-      },
-      getCurrentUser: () => sessionStorage.getItem('currentUserEmail') || localStorage.getItem('currentUserEmail'),
-      clearSession: () => { sessionStorage.clear(); localStorage.clear(); }
-    };
+    // Obtener ID de la transacción de la URL
+    const pathParts = window.location.pathname.split('/');
+    transactionId = pathParts[pathParts.length - 1];
+
+    if (!transactionId) {
+      showError('ID de transacción no válido');
+    } else {
+      loadPaymentData();
+    }
+
+    async function loadPaymentData() {
+      try {
+        // Obtener datos de la transacción
+        const response = await fetch(`/api/payment-button/transaction/${transactionId}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Error al cargar datos de la transacción');
+        }
+
+        // Guardar datos de la transacción para compartir
+        transactionData = data.transaction;
+
+        // Verificar si ya está pagado
+        if (transactionData.status === 'PAGADO') {
+          procesarConfirmacionPago(transactionData);
+          return;
+        }
+
+        // Mostrar datos de la transacción
+        displayPaymentData(transactionData);
+
+        // Generar QR dinámicamente
+        await generateQRCode(transactionData);
+
+        // Añadir botón para compartir datos del QR
+        addShareQRButton();
+
+        // Iniciar polling de estado de pago
+        startPolling(transactionId);
+
+        // Configurar enlace de visor QR
+        setupQRViewerLink();
+
+        // Iniciar polling específico para confirmación de pago
+        startPaymentStatusPolling(transactionId);
+
+      } catch (error) {
+        console.error('Error loading payment data:', error);
+        showError(error.message);
+      }
+    }
+
+    // Función para procesar la confirmación de pago (SIN cerrar ventana)
+    function procesarConfirmacionPago(transactionData) {
+      console.log('🎉 Procesando confirmación de pago:', transactionData);
+
+      // Detener todos los intervalos de polling
+      if (pollingInterval) clearInterval(pollingInterval);
+      if (statusPolling) clearInterval(statusPolling);
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      // Ocultar secciones de QR y carga
+      const pixQrContainer = document.getElementById('pixQrContainer');
+      const qrCodeImage = document.getElementById('pixQrImg');
+      const pixCode = document.getElementById('pixCode');
+      const paymentLinkSection = document.getElementById('paymentLinkSection');
+
+      if (pixQrContainer) pixQrContainer.style.display = 'none';
+      if (qrCodeImage) qrCodeImage.style.display = 'none';
+      if (pixCode) pixCode.style.display = 'none';
+      if (paymentLinkSection) paymentLinkSection.style.display = 'none';
+
+      // Ocultar el contador global
+      const globalCountdown = document.getElementById('globalCountdown');
+      if (globalCountdown) {
+        globalCountdown.style.display = 'none';
+      }
+
+      // Crear o actualizar la sección de confirmación de pago
+      let paymentConfirmationSection = document.getElementById('paymentConfirmationSection');
+      if (!paymentConfirmationSection) {
+        paymentConfirmationSection = document.createElement('div');
+        paymentConfirmationSection.id = 'paymentConfirmationSection';
+        paymentConfirmationSection.className = 'alert alert-success text-center mt-4';
+        
+        const paymentSection = document.getElementById('paymentSection') || document.body;
+        paymentSection.appendChild(paymentConfirmationSection);
+      }
+
+      // Contenido de la confirmación de pago
+      paymentConfirmationSection.innerHTML = `
+        <div class="container">
+          <h2 class="mb-4">✅ Pago Confirmado</h2>
+          <div class="alert alert-success">
+            <h4>¡El pago ha sido procesado exitosamente!</h4>
+          </div>
+          <div class="row">
+            <div class="col-md-6 text-start">
+              <h5>Detalles del Pago</h5>
+              <p><strong>ID Transacción:</strong> ${transactionData.internalId}</p>
+              <p><strong>Monto:</strong> $${transactionData.amountUSD} USD</p>
+              <p><strong>Fecha:</strong> ${new Date(transactionData.paid_at || new Date()).toLocaleString()}</p>
+              <p><strong>Estado:</strong> <span class="badge bg-success">PAGADO</span></p>
+            </div>
+            <div class="col-md-6 text-start">
+              <h5>Información del Cliente</h5>
+              <p><strong>Nombre:</strong> ${transactionData.customer?.name || 'N/A'}</p>
+              <p><strong>Email:</strong> ${transactionData.customer?.email || 'N/A'}</p>
+              <p><strong>Teléfono:</strong> ${transactionData.customer?.phone || 'N/A'}</p>
+              <p><strong>CPF:</strong> ${transactionData.customer?.cpf || 'N/A'}</p>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button id="notifyParentBtn" class="btn btn-primary me-2">Notificar a Ventana Padre</button>
+            <button id="printReceiptBtn" class="btn btn-secondary">Imprimir Recibo</button>
+          </div>
+        </div>
+      `;
+
+      paymentConfirmationSection.style.display = 'block';
+
+      // Configurar botones
+      const notifyParentBtn = document.getElementById('notifyParentBtn');
+      const printReceiptBtn = document.getElementById('printReceiptBtn');
+
+      if (notifyParentBtn) {
+        notifyParentBtn.addEventListener('click', () => {
+          if (window.opener) {
+            window.opener.postMessage({ 
+              type: 'PAYMENT_SUCCESS', 
+              transactionId: transactionData.internalId,
+              data: transactionData 
+            }, '*');
+            alert('Notificación enviada a la ventana padre');
+          } else {
+            alert('No hay ventana padre para notificar');
+          }
+        });
+      }
+
+      if (printReceiptBtn) {
+        printReceiptBtn.addEventListener('click', () => {
+          window.print();
+        });
+      }
+
+      // Notificar automáticamente a la ventana padre si existe
+      if (window.opener) {
+        window.opener.postMessage({ 
+          type: 'PAYMENT_SUCCESS', 
+          transactionId: transactionData.internalId,
+          data: transactionData 
+        }, '*');
+      }
+    }
+
+    // Función para verificar estado de pago
+    function startPaymentStatusPolling(transactionId) {
+      statusPolling = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/payment-button/transaction/${transactionId}`);
+          const data = await response.json();
+
+          if (data.success && data.transaction.status === 'PAGADO') {
+            clearInterval(statusPolling);
+            procesarConfirmacionPago(data.transaction);
+          }
+        } catch (error) {
+          console.error('Error en polling de estado:', error);
+        }
+      }, 3000); // Verificar cada 3 segundos
+
+      // Tiempo máximo de polling (10 minutos)
+      setTimeout(() => {
+        if (statusPolling) {
+          clearInterval(statusPolling);
+          console.warn('⏰ Tiempo máximo de polling alcanzado');
+        }
+      }, 10 * 60 * 1000);
+    }
+
+    function addShareQRButton() {
+      const paymentBody = document.querySelector('.payment-body');
+      const shareButton = document.createElement('button');
+      shareButton.className = 'btn btn-success mt-3 w-100';
+      shareButton.textContent = 'Enviar datos a Visor QR';
+      shareButton.addEventListener('click', shareQRData);
+      paymentBody.appendChild(shareButton);
+    }
+
+    function setupQRViewerLink() {
+      // Generar un enlace único para compartir
+      const qrViewerLink = document.getElementById('qrViewerLink');
+      qrViewerLink.value = `${window.location.origin}/visor_qr.html`;
+    }
+
+    function copyViewerLink() {
+      const qrViewerLink = document.getElementById('qrViewerLink');
+      qrViewerLink.select();
+      document.execCommand('copy');
+      // Mostrar mensaje temporal de copiado
+      const originalText = qrViewerLink.value;
+      qrViewerLink.value = '¡Enlace copiado!';
+      setTimeout(() => {
+        qrViewerLink.value = originalText;
+      }, 2000);
+    }
+
+    function shareQRData() {
+      if (!transactionData) {
+        alert('Datos de transacción no disponibles');
+        return;
+      }
+
+      // Preparar datos para compartir
+      const shareData = {
+        userEmail: transactionData.userEmail,
+        amountUSD: transactionData.amountUSD,
+        transactionId: transactionId,
+        customerName: transactionData.customer.name,
+        customerEmail: transactionData.customer.email,
+        customerPhone: transactionData.customer.phone,
+        customerCpf: transactionData.customer.cpf,
+        qrCodeBase64: transactionData.qrData?.qrCodeBase64 || '',
+        pixCopyPast: transactionData.qrData?.pixCopyPast || ''
+      };
+
+      // Almacenar en localStorage para que el visor QR pueda acceder
+      localStorage.setItem('sharedTransactionData', JSON.stringify(shareData));
+      alert('Datos actualizados para el visor QR.');
+    }
+
+    async function generateQRCode(transaction) {
+      const pixQrContainer = document.getElementById('pixQrContainer');
+      const pixQrImg = document.getElementById('pixQrImg');
+      const pixCode = document.getElementById('pixCode');
+      const loadingQR = document.getElementById('loadingQR');
+
+      // 1. Si ya hay QR en la transacción, úsalo
+      if (transaction.qrData && transaction.qrData.qrCodeBase64) {
+        pixQrImg.src = `data:image/png;base64,${transaction.qrData.qrCodeBase64}`;
+        pixQrContainer.style.display = '';
+        pixCode.textContent = transaction.qrData.pixCopyPast || '';
+        loadingQR.style.display = 'none';
+        return;
+      }
+
+      // 2. Si no hay QR, genera uno nuevo (opcional)
+      try {
+        const response = await fetch('/api/payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amountUSD: transaction.amountUSD,
+            name: transaction.customer.name,
+            email: transaction.customer.email,
+            phone: transaction.customer.phone,
+            cpf: transaction.customer.cpf,
+            userEmail: transaction.userEmail
+          })
+        });
+
+        const qrData = await response.json();
+
+        if (qrData.success && qrData.qrData && qrData.qrData.qrCodeBase64) {
+          pixQrImg.src = `data:image/png;base64,${qrData.qrData.qrCodeBase64}`;
+          pixQrContainer.style.display = '';
+          pixCode.textContent = qrData.qrData.pixCopyPast || '';
+          loadingQR.style.display = 'none';
+        } else {
+          throw new Error('No se pudo generar el QR');
+        }
+      } catch (error) {
+        loadingQR.innerHTML = `<span class="text-danger">⚠️ QR no disponible</span>`;
+        pixQrContainer.style.display = 'none';
+      }
+    }
+
+    function displayPaymentData(transaction) {
+      // Mapear propiedades si vienen con otros nombres
+      const amountUSD = Number(transaction.amountUSD) || 0;
+      const amountBRL = Number(transaction.amountBRL ?? transaction.priceNationalCurrency) || 0;
+      const usdToBrlRate = Number(transaction.usdToBrlRate ?? transaction.vetTax) || 0;
+      const expiresAtValue = transaction.expiresAt ?? transaction.qrCodeExpiration ?? 
+        new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutos por defecto
+
+      document.getElementById('customerName').textContent = transaction.customer.name || '-';
+      document.getElementById('customerEmail').textContent = transaction.customer.email || '-';
+
+      document.getElementById('amountUSD').textContent = formatCurrency(amountUSD, 'USD');
+      document.getElementById('amountBRL').textContent = formatCurrency(amountBRL, 'BRL');
+      document.getElementById('usdToBrlRate').textContent = usdToBrlRate.toFixed(4);
+
+      document.getElementById('paymentSection').style.display = 'block';
+      document.getElementById('loadingSection').style.display = 'none';
+
+      // Iniciar cuenta regresiva
+      expiresAt = new Date(expiresAtValue);
+      startCountdown();
+    }
+
+    function formatCurrency(amount, currency) {
+      const options = { style: 'currency', currency: currency };
+      return new Intl.NumberFormat('es-ES', options).format(amount);
+    }
+
+    function showError(message) {
+      document.getElementById('loadingSection').style.display = 'none';
+      document.getElementById('paymentSection').style.display = 'none';
+      alert(message);
+    }
+
+    function startPolling() {
+      // Iniciar polling para verificar estado de pago
+      pollingInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/payment/status/${transactionId}`);
+          const result = await response.json();
+
+          if (result.paid) {
+            // Detener polling
+            clearInterval(pollingInterval);
+            clearInterval(countdownInterval);
+            
+            // Mostrar mensaje de pago confirmado
+            const paymentSection = document.getElementById('paymentSection');
+            paymentSection.innerHTML = `
+              <div class="alert alert-success text-center">
+                <h4>✅ ¡Pago recibido!</h4>
+                <p>El pago fue confirmado correctamente.</p>
+                <hr>
+                <b>Fecha:</b> ${result.data.paid_at || ''}<br>
+                <b>Cliente:</b> ${result.data.name || ''}<br>
+                <b>Email:</b> ${result.data.email || ''}<br>
+              </div>
+            `;
+
+            // Ocultar contador global
+            document.getElementById('globalCountdown').style.display = 'none';
+
+            // Enviar mensaje a la ventana padre si está en un popup
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'PAYMENT_SUCCESS', 
+                transactionId: transactionId,
+                data: result.data 
+              }, '*');
+            }
+          }
+        } catch (error) {
+          console.error('Error en polling:', error);
+          // Detener polling en caso de error
+          clearInterval(pollingInterval);
+        }
+      }, 3000); // Cada 3 segundos
+    }
 
     function startCountdown() {
-      if (countdownInterval) clearInterval(countdownInterval);
-      countdownSeconds = 300; // Reiniciar a 5 minutos
-      
-      document.getElementById('countdownTimer').style.display = 'block';
-      
+      const countdown = document.getElementById('globalCountdown');
+      clearInterval(countdownInterval);
+
       countdownInterval = setInterval(() => {
-        countdownSeconds--;
-        const minutes = Math.floor(countdownSeconds / 60);
-        const seconds = countdownSeconds % 60;
-        document.getElementById('timeRemaining').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        
-        if (countdownSeconds <= 0) {
+        const now = new Date();
+        const diff = expiresAt - now;
+
+        if (diff <= 0) {
+          countdown.textContent = 'El tiempo para completar el pago ha expirado.';
+          countdown.classList.add('danger');
           clearInterval(countdownInterval);
           clearInterval(pollingInterval);
-          // Ocultar QR y mostrar expirado
-          document.getElementById('qrCodeImage').style.display = 'none';
-          document.getElementById('pixCode').textContent = 'Pago expirado';
-          document.getElementById('countdownTimer').innerHTML = '<div class="alert alert-danger mb-0">⏰ Tiempo expirado - El código QR ya no es válido</div>';
-          document.getElementById('transactionStatus').textContent = 'EXPIRADO';
-          document.getElementById('transactionStatus').className = 'badge bg-danger';
+          
+          // Mostrar mensaje de expiración
+          const paymentSection = document.getElementById('paymentSection');
+          paymentSection.innerHTML = `
+            <div class="alert alert-warning text-center">
+              <h4>⏰ Tiempo de pago expirado</h4>
+              <p>El código QR ha caducado. Por favor, genere un nuevo código de pago.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        
+        countdown.textContent = `Tiempo restante para completar el pago: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Cambiar estilo según el tiempo restante
+        if (diff < 60000) {
+          countdown.classList.add('danger');
+          countdown.classList.remove('warning');
+        } else if (diff < 180000) {
+          countdown.classList.add('warning');
+          countdown.classList.remove('danger');
+        } else {
+          countdown.classList.remove('danger', 'warning');
         }
       }, 1000);
     }
 
-    function stopCountdown() {
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-      }
-      document.getElementById('countdownTimer').style.display = 'none';
+    function copyPaymentLink() {
+      const paymentLink = document.getElementById('paymentLink');
+      const textArea = document.createElement('textarea');
+      textArea.value = paymentLink.textContent.trim();
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Enlace de pago copiado al portapapeles');
     }
 
-    async function fetchTransaction(email) {
-      const res = await fetch(`/api/payment-button/latest-transaction?userEmail=${encodeURIComponent(email)}`);
-      const data = await res.json();
-      return data.success ? data.transaction : null;
-    }
-
-    function displayTransaction(tx) {
-      document.getElementById('paymentStatus').innerHTML = ''; // Limpiar estado previo
-      stopCountdown(); // Detener cualquier cuenta regresiva anterior
-      
-      // Resetear el contenedor del countdown a su estado inicial
-      document.getElementById('countdownTimer').innerHTML = `
-        <h5 class="mb-2">⏱️ Tiempo restante para pagar:</h5>
-        <h3 id="timeRemaining" class="text-center mb-0">5:00</h3>
-      `;
-      document.getElementById('countdownTimer').className = 'alert alert-info mt-3';
-
-      document.getElementById('userEmail').textContent = tx.userEmail;
-      document.getElementById('transactionId').textContent = tx.internalId || tx.transactionId;
-      document.getElementById('amountUSD').textContent = `${tx.amountUSD} USD`;
-      document.getElementById('transactionStatus').textContent = tx.status;
-      const badge = document.getElementById('transactionStatus');
-      badge.className = 'badge';
-      badge.classList.add(tx.status === 'PAGADO' ? 'bg-success' : 'bg-warning');
-      document.getElementById('customerName').textContent = tx.customer?.name || '-';
-      document.getElementById('customerEmail').textContent = tx.customer?.email || '-';
-      document.getElementById('customerPhone').textContent = tx.customer?.phone || '-';
-      document.getElementById('customerCpf').textContent = tx.customer?.cpf || '-';
-
-      const qr = tx.qrData || {};
-      const qrImg = document.getElementById('qrCodeImage');
-      
-      // Solo mostrar QR si el estado NO es PAGADO
-      if (tx.status !== 'PAGADO' && qr.qrCodeBase64) {
-        qrImg.src = `data:image/png;base64,${qr.qrCodeBase64}`;
-        qrImg.style.display = 'block';
-        document.getElementById('pixCode').textContent = qr.pixCopyPast || '-';
-        
-        // Iniciar cuenta regresiva solo si el estado es PENDIENTE
-        if (tx.status === 'PENDIENTE') {
-          startCountdown();
-        }
-      } else {
-        qrImg.style.display = 'none';
-        document.getElementById('pixCode').textContent = tx.status === 'PAGADO' ? 'Pago completado' : '-';
-        document.getElementById('countdownTimer').style.display = 'none';
-      }
-
-      document.getElementById('loginSection').style.display = 'none';
-      document.getElementById('transactionDetails').style.display = 'block';
-    }
-
-    async function startPolling(transactionId) {
-      if (pollingInterval) clearInterval(pollingInterval);
+    // Función para iniciar polling de estado de pago
+    function startPaymentPolling(transactionId) {
+      let pollingInterval = null;
+      let maxAttempts = 60; // Intentos cada 3 segundos = 3 minutos
       let attempts = 0;
-      pollingInterval = setInterval(async () => {
-        if (++attempts > 60) return clearInterval(pollingInterval);
-        const res = await fetch(`/api/payment-button/transaction/${transactionId}`);
-        const data = await res.json();
-        if (data.success && data.transaction.status === 'PAGADO') {
+
+      function stopPolling() {
+        if (pollingInterval) {
           clearInterval(pollingInterval);
-          stopCountdown(); // Detener cuenta regresiva si se paga
-          displayTransaction(data.transaction);
+        }
+      }
+
+      pollingInterval = setInterval(async () => {
+        attempts++;
+
+        // Detener después de cierto número de intentos
+        if (attempts >= maxAttempts) {
+          stopPolling();
           document.getElementById('paymentStatus').innerHTML = `
-            <div class="alert alert-success">✅ Pago confirmado<br><b>Fecha:</b> ${new Date(data.transaction.paid_at).toLocaleString()}</div>`;
-          document.getElementById('qrCodeImage').style.display = 'none';
+            <div class="alert alert-warning">
+              <h4>⏰ Tiempo de espera agotado</h4>
+              <p>No se pudo confirmar el pago. Por favor, verifique su transacción.</p>
+            </div>
+          `;
+          return;
         }
-      }, 3000);
+
+        try {
+          const response = await fetch(`/api/payment/status/${transactionId}`);
+          const result = await response.json();
+
+          if (result.paid) {
+            stopPolling();
+
+            // Mostrar confirmación
+            document.getElementById('paymentStatus').innerHTML = `
+              <div class="alert alert-success">
+                <h4>✅ Pago confirmado</h4>
+                <p>Su pago ha sido procesado exitosamente.</p>
+                <hr>
+                <b>Monto:</b> ${result.data.amountUSD} USD<br>
+                <b>Fecha:</b> ${result.data.paid_at || new Date().toLocaleString()}<br>
+                <b>Cliente:</b> ${result.data.name || 'N/A'}<br>
+                <b>Email:</b> ${result.data.email || 'N/A'}
+              </div>
+            `;
+
+            // Notificar a la ventana padre (si está en un popup)
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'PAYMENT_SUCCESS', 
+                transactionId: transactionId,
+                data: result.data 
+              }, '*');
+            }
+          }
+        } catch (error) {
+          console.error('Error en polling:', error);
+        }
+      }, 3000); // Cada 3 segundos
     }
 
-    document.getElementById('loginForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const email = document.getElementById('loginEmail').value;
-      const pass = document.getElementById('loginPassword').value;
-      const res = await fetch('/api/login', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass })
-      });
-      const data = await res.json();
-      document.getElementById('debugContent').textContent = JSON.stringify(data, null, 2);
-      if (data.success) {
-        SessionManager.setCurrentUser(email);
-        const tx = await fetchTransaction(email);
-        if (tx) {
-          displayTransaction(tx);
-          if (tx.status !== 'PAGADO') startPolling(tx.transactionId || tx.internalId);
-        }
-      } else alert(data.error || 'Login fallido');
-    });
+    // Añadir elemento para mostrar estado del pago
+    function setupPaymentStatusElement() {
+      const container = document.querySelector('.payment-body');
+      const statusDiv = document.createElement('div');
+      statusDiv.id = 'paymentStatus';
+      statusDiv.className = 'mt-3';
+      container.appendChild(statusDiv);
+    }
 
-    document.getElementById('updateButton').addEventListener('click', async () => {
-      // Limpiar todo el estado anterior
-      document.getElementById('paymentStatus').innerHTML = '';
-      stopCountdown(); // Detener cuenta regresiva anterior
-      if (pollingInterval) clearInterval(pollingInterval); // Detener polling anterior
-      
-      // Resetear el badge de estado a su estado inicial
-      document.getElementById('transactionStatus').className = 'badge bg-warning';
-      
-      const email = SessionManager.getCurrentUser();
-      const tx = await fetchTransaction(email);
-      if (tx) {
-        // Mostrar la nueva transacción
-        displayTransaction(tx);
-        
-        // Si la transacción no está pagada, reiniciar el polling
-        if (tx.status !== 'PAGADO') {
-          startPolling(tx.transactionId || tx.internalId);
-        }
-        
-        // Si la transacción está pendiente, la cuenta regresiva se reiniciará
-        // automáticamente en displayTransaction()
+    // Modificar el script de carga de transacción para añadir polling
+    document.addEventListener('DOMContentLoaded', () => {
+      const pathParts = window.location.pathname.split('/');
+      const transactionId = pathParts[pathParts.length - 1];
+
+      setupPaymentStatusElement();
+
+      if (transactionId) {
+        startPaymentPolling(transactionId); // Para el status visual
+        startPolling(transactionId);        // Para el mensaje de pago recibido y notificación
       }
     });
 
-    window.addEventListener('message', event => {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type === 'PAYMENT_SUCCESS') {
-        stopCountdown(); // Detener cuenta regresiva si se paga
-        displayTransaction(event.data.data);
-        document.getElementById('paymentStatus').innerHTML = `
-          <div class="alert alert-success">✅ Pago recibido<br><b>Fecha:</b> ${event.data.data.paid_at}</div>`;
-        document.getElementById('qrCodeImage').style.display = 'none';
+    // Función para procesar la confirmación de pago
+    function procesarConfirmacionPago(transactionData) {
+      // Ocultar secciones de carga y QR si existen
+      const loadingSection = document.getElementById('loadingSection');
+      if (loadingSection) loadingSection.style.display = 'none';
+      const qrResult = document.getElementById('qrResult');
+      if (qrResult) qrResult.style.display = 'none';
+
+      // Mostrar sección de pago confirmado
+      const paymentConfirmationSection = document.createElement('div');
+      paymentConfirmationSection.className = 'alert alert-success text-center';
+      paymentConfirmationSection.innerHTML = `
+        <h4>✅ ¡Pago recibido!</h4>
+        <p>El pago fue confirmado correctamente.</p>
+        <hr>
+        <b>Monto:</b> $${transactionData.amountUSD} USD<br>
+        <b>Fecha:</b> ${transactionData.paid_at ? new Date(transactionData.paid_at).toLocaleString() : ''}<br>
+        <b>Cliente:</b> ${transactionData.customer?.name || ''}<br>
+        <b>Email:</b> ${transactionData.customer?.email || ''}<br>
+      `;
+
+      // Insertar la confirmación en el contenedor principal
+      const paymentSection = document.getElementById('paymentSection');
+      paymentSection.innerHTML = ''; // Limpiar contenido previo
+      paymentSection.appendChild(paymentConfirmationSection);
+      paymentSection.style.display = 'block';
+
+      // Ocultar el contador global
+      const globalCountdown = document.getElementById('globalCountdown');
+      if (globalCountdown) globalCountdown.style.display = 'none';
+
+      // Notificar a la ventana padre si está en un popup
+      if (window.opener) {
+        window.opener.postMessage({ 
+          type: 'PAYMENT_SUCCESS', 
+          transactionId: transactionData.internalId,
+          data: transactionData 
+        }, '*');
+      }
+    }
+
+    // Función para verificar el estado de la transacción
+    async function checkTransactionStatus(transactionId) {
+      try {
+        const response = await fetch(`/api/payment/status/${transactionId}`);
+        const result = await response.json();
+
+        if (result.paid && result.data) {
+          procesarConfirmacionPago(result.data);
+        }
+      } catch (error) {
+        console.error('Error al verificar estado de transacción:', error);
+      }
+    }
+
+    // Modificar el script de carga para incluir verificación de estado
+    document.addEventListener('DOMContentLoaded', () => {
+      const pathParts = window.location.pathname.split('/');
+      const transactionId = pathParts[pathParts.length - 1];
+
+      if (transactionId) {
+        // Llamar a la función de verificación de estado cada 3 segundos
+        const statusPolling = setInterval(async () => {
+          const response = await fetch(`/api/payment-button/transaction/${transactionId}`);
+          const data = await response.json();
+
+          if (data.success && data.transaction.status === 'PAGADO') {
+            clearInterval(statusPolling);
+            procesarConfirmacionPago(data.transaction);
+          }
+        }, 3000);
+
+        // Detener el polling después de 5 minutos
+        setTimeout(() => clearInterval(statusPolling), 5 * 60 * 1000);
       }
     });
 
-    function logout() {
-      stopCountdown(); // Detener cuenta regresiva al cerrar sesión
-      SessionManager.clearSession();
-      location.reload();
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-      const email = SessionManager.getCurrentUser();
-      if (email) {
-        const tx = await fetchTransaction(email);
-        if (tx) {
-          displayTransaction(tx);
-          if (tx.status !== 'PAGADO') startPolling(tx.transactionId || tx.internalId);
-        }
+    // Manejar mensaje del webhook
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'PAYMENT_SUCCESS') {
+        procesarConfirmacionPago(event.data.data);
       }
     });
   </script>

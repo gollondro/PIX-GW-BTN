@@ -129,6 +129,13 @@
     function displayTransaction(tx) {
       document.getElementById('paymentStatus').innerHTML = ''; // Limpiar estado previo
       stopCountdown(); // Detener cualquier cuenta regresiva anterior
+      
+      // Resetear el contenedor del countdown a su estado inicial
+      document.getElementById('countdownTimer').innerHTML = `
+        <h5 class="mb-2">⏱️ Tiempo restante para pagar:</h5>
+        <h3 id="timeRemaining" class="text-center mb-0">5:00</h3>
+      `;
+      document.getElementById('countdownTimer').className = 'alert alert-info mt-3';
 
       document.getElementById('userEmail').textContent = tx.userEmail;
       document.getElementById('transactionId').textContent = tx.internalId || tx.transactionId;
@@ -158,6 +165,7 @@
       } else {
         qrImg.style.display = 'none';
         document.getElementById('pixCode').textContent = tx.status === 'PAGADO' ? 'Pago completado' : '-';
+        document.getElementById('countdownTimer').style.display = 'none';
       }
 
       document.getElementById('loginSection').style.display = 'none';
@@ -203,15 +211,27 @@
     });
 
     document.getElementById('updateButton').addEventListener('click', async () => {
-      // Limpiar el estado de pago antes de actualizar
+      // Limpiar todo el estado anterior
       document.getElementById('paymentStatus').innerHTML = '';
       stopCountdown(); // Detener cuenta regresiva anterior
+      if (pollingInterval) clearInterval(pollingInterval); // Detener polling anterior
+      
+      // Resetear el badge de estado a su estado inicial
+      document.getElementById('transactionStatus').className = 'badge bg-warning';
       
       const email = SessionManager.getCurrentUser();
       const tx = await fetchTransaction(email);
       if (tx) {
+        // Mostrar la nueva transacción
         displayTransaction(tx);
-        if (tx.status !== 'PAGADO') startPolling(tx.transactionId || tx.internalId);
+        
+        // Si la transacción no está pagada, reiniciar el polling
+        if (tx.status !== 'PAGADO') {
+          startPolling(tx.transactionId || tx.internalId);
+        }
+        
+        // Si la transacción está pendiente, la cuenta regresiva se reiniciará
+        // automáticamente en displayTransaction()
       }
     });
 
