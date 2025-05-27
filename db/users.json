@@ -12,22 +12,23 @@
     "defaultCurrency": "CLP",
     "allowQR": true,
     "allowLink": true,
-      "operationCode": 1
+    "operationCode": 1
   },
   {
     "email": "mcaracci@gmail.com",
     "name": "Marcelo Caracci",
     "password": "12345",
     "merchant_id": "3111",
-    "renpix_email": "afexparceiro@teste.com",
-    "renpix_password": "Welcome@123456*1",    
+       "renpix_email": "afexparceiro@teste.com",
+    "renpix_password": "Welcome@123456*",
     "ventaTiendaActiva": false,
+    "requiereIdVentaTienda": false,
     "allowCLP": true,
     "allowUSD": false,
     "defaultCurrency": "CLP",
     "allowQR": true,
     "allowLink": false,
-      "operationCode": 4
+    "operationCode": 4
   },
   {
     "email": "dolar@afex.cl",
@@ -42,6 +43,6 @@
     "defaultCurrency": "USD",
     "allowQR": false,
     "allowLink": true,
-      "operationCode": 1
+    "operationCode": 1
   }
 ]

@@ -207,7 +207,7 @@
     <div class="modal fade" id="modalUsuario" tabindex="-1">
       <div class="modal-dialog">
         <form class="modal-content" id="formUsuario">
-          <div class="modal-header"><h5 class="modal-title">Usuario</h5></div>
+          <div class="modal-header"><h5 class="modal-title">Ver Usuario</h5></div>
           <div class="modal-body">
             <input type="hidden" id="usuarioIdx">
             <div class="mb-2">
@@ -285,8 +285,7 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="submit" class="btn btn-afex">Guardar</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
           </div>
         </form>
       </div>
@@ -297,210 +296,147 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/admin.js"></script>
 <script>
-  // Esperar a que el DOM y admin.js estén cargados
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM cargado, configurando eventos de edición...');
+  // Variable global para almacenar usuarios
+  window.usuariosData = [];
+  
+  // Función global para buscar usuario
+  function buscarUsuario(parametro) {
+    let usuario = null;
     
-    // Función mejorada para editar usuario
-    window.editarUsuarioMejorado = function(index) {
-      console.log('Editando usuario en índice:', index);
-      
-      // Obtener el usuario del array
-      const usuario = window.usuarios ? window.usuarios[index] : null;
-      if (!usuario) {
-        console.error('Usuario no encontrado en índice:', index);
-        alert('Error: Usuario no encontrado');
-        return;
+    // Primero buscar en localStorage (que usa admin.js)
+    const usuariosLocalStorage = JSON.parse(localStorage.getItem('usuarios') || '[]');
+    
+    // Convertir parametro a string para poder usar includes
+    const parametroStr = String(parametro);
+    
+    if (isNaN(parametro) || parametroStr.includes('@')) {
+      // Buscar por email
+      usuario = usuariosLocalStorage.find(u => u.email === parametroStr);
+      if (!usuario && window.usuariosData) {
+        usuario = window.usuariosData.find(u => u.email === parametroStr);
       }
-      
-      console.log('Datos del usuario:', usuario);
-      
-      // Llenar todos los campos del modal
-      document.getElementById('usuarioIdx').value = index;
-      document.getElementById('userEmail').value = usuario.email || '';
-      document.getElementById('userName').value = usuario.name || '';
-      document.getElementById('userPass').value = usuario.password || '';
-      document.getElementById('userMerchant').value = usuario.merchant_id || '';
-      
-      // Campos de Rendix/Renpix
-      document.getElementById('userRenpixEmail').value = usuario.renpix_email || '';
-      document.getElementById('userRenpixPassword').value = usuario.renpix_password || '';
-      
-      // Código de operación
-      document.getElementById('userOperationCode').value = usuario.operationCode || '1';
-      
-      // Checkboxes
-      document.getElementById('userAllowCLP').checked = usuario.allowCLP !== false;
-      document.getElementById('userAllowUSD').checked = usuario.allowUSD === true;
-      document.getElementById('userDefaultCurrency').value = usuario.defaultCurrency || 'CLP';
-      document.getElementById('userAllowQR').checked = usuario.allowQR !== false;
-      document.getElementById('userAllowLink').checked = usuario.allowLink === true;
-      document.getElementById('userTiendaActiva').checked = usuario.requiereIdVentaTienda === true || usuario.ventaTiendaActiva === true;
-      
-      // Abrir el modal
-      const modal = new bootstrap.Modal(document.getElementById('modalUsuario'));
-      modal.show();
-    };
-    
-    // Interceptar clics en la tabla de usuarios usando delegación de eventos
-    const usuariosBody = document.getElementById('usuariosBody');
-    if (usuariosBody) {
-      usuariosBody.addEventListener('click', function(e) {
-        // Buscar si el clic fue en un botón de editar o su ícono
-        let target = e.target;
-        
-        // Si se hizo clic en el ícono dentro del botón, obtener el botón padre
-        if (target.tagName === 'I' || target.tagName === 'SPAN') {
-          target = target.closest('button');
-        }
-        
-        // Verificar si es un botón de editar
-        if (target && target.tagName === 'BUTTON') {
-          const onclickAttr = target.getAttribute('onclick');
-          if (onclickAttr && onclickAttr.includes('editarUsuario')) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Extraer el índice del onclick
-            const match = onclickAttr.match(/editarUsuario\((\d+)\)/);
-            if (match && match[1]) {
-              const index = parseInt(match[1]);
-              console.log('Clic interceptado, editando usuario índice:', index);
-              editarUsuarioMejorado(index);
-            }
-          }
-        }
-      });
+    } else {
+      // Buscar por índice
+      const index = parseInt(parametro);
+      usuario = usuariosLocalStorage[index];
+      if (!usuario && window.usuariosData) {
+        usuario = window.usuariosData[index];
+      }
     }
     
-    // Sobrescribir la función global si existe
-    if (window.editarUsuario) {
-      const originalEditarUsuario = window.editarUsuario;
-      window.editarUsuario = function(index) {
-        console.log('Función editarUsuario llamada, redirigiendo a versión mejorada');
-        editarUsuarioMejorado(index);
-      };
-    }
-  });
-
-  // Función para manejar el guardado del formulario de usuario
-  document.getElementById('formUsuario').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const idx = document.getElementById('usuarioIdx').value;
-    const isEdit = idx !== '' && idx !== undefined && idx !== null;
-    
-    const userData = {
-      email: document.getElementById('userEmail').value,
-      name: document.getElementById('userName').value,
-      password: document.getElementById('userPass').value,
-      merchant_id: document.getElementById('userMerchant').value,
-      renpix_email: document.getElementById('userRenpixEmail').value,
-      renpix_password: document.getElementById('userRenpixPassword').value,
-      operationCode: parseInt(document.getElementById('userOperationCode').value),
-      allowCLP: document.getElementById('userAllowCLP').checked,
-      allowUSD: document.getElementById('userAllowUSD').checked,
-      defaultCurrency: document.getElementById('userDefaultCurrency').value,
-      allowQR: document.getElementById('userAllowQR').checked,
-      allowLink: document.getElementById('userAllowLink').checked,
-      requiereIdVentaTienda: document.getElementById('userTiendaActiva').checked
-    };
-    
+    return usuario;
+  }
+  
+  // Función para cargar usuarios desde el servidor
+  async function cargarUsuariosData() {
     try {
-      let response;
-      
-      if (isEdit) {
-        // Si es edición, hacer PUT o POST con flag de actualización
-        console.log('Editando usuario:', userData.email);
-        response = await fetch('/api/admin/users/update', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            oldEmail: window.usuarios[idx].email, // Email original para buscar
-            ...userData
-          })
-        });
-        
-        // Si el endpoint de actualización no existe, intentar con el endpoint normal
-        if (response.status === 404) {
-          response = await fetch('/api/admin/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...userData,
-              isUpdate: true,
-              userIndex: idx
-            })
-          });
-        }
-      } else {
-        // Si es nuevo, hacer POST normal
-        console.log('Creando nuevo usuario:', userData.email);
-        response = await fetch('/api/admin/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userData)
-        });
+      // Usar localStorage si existe, sino cargar desde el backend
+      const usuariosLocalStorage = JSON.parse(localStorage.getItem('usuarios') || '[]');
+      if (usuariosLocalStorage.length > 0) {
+        window.usuariosData = usuariosLocalStorage;
+        return window.usuariosData;
       }
       
-      const result = await response.json();
-      
-      if (result.success || response.ok) {
-        alert(isEdit ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente');
-        
-        // Cerrar el modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalUsuario'));
-        modal.hide();
-        
-        // Recargar la lista de usuarios
-        if (typeof cargarUsuarios === 'function') {
-          cargarUsuarios();
-        } else {
-          location.reload();
-        }
-      } else {
-        throw new Error(result.error || 'Error al guardar usuario');
+      // Si no hay datos en localStorage, intentar cargar desde el servidor
+      // Cambiar la URL por una que sí funcione en tu aplicación
+      const response = await fetch('/admin'); // O cualquier endpoint que devuelva usuarios
+      if (response.ok) {
+        // Como no tienes un endpoint específico para usuarios,
+        // usar los datos del localStorage o dejar vacío
+        window.usuariosData = [];
+        return window.usuariosData;
       }
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error: ' + error.message);
+      console.error('Error cargando usuarios:', error);
     }
-  });
+    
+    // Usar localStorage como fallback
+    const usuariosLocalStorage = JSON.parse(localStorage.getItem('usuarios') || '[]');
+    window.usuariosData = usuariosLocalStorage;
+    return window.usuariosData;
+  }
   
-  // Limpiar el formulario cuando se abre para nuevo usuario
-  document.getElementById('modalUsuario').addEventListener('show.bs.modal', function(event) {
-    // Si no viene de un botón de editar, limpiar el formulario
-    if (!event.relatedTarget || !event.relatedTarget.onclick || !event.relatedTarget.onclick.toString().includes('editarUsuario')) {
-      document.getElementById('formUsuario').reset();
-      document.getElementById('usuarioIdx').value = '';
+  // Función mejorada para editar usuario
+  window.editarUsuarioMejorado = function(parametro) {
+    console.log('Editando usuario con parámetro:', parametro);
+    
+    const usuario = buscarUsuario(parametro);
+    
+    if (!usuario) {
+      console.error('Usuario no encontrado:', parametro);
+      alert('Error: Usuario no encontrado');
+      return;
     }
-  });
+    
+    console.log('Datos del usuario encontrado:', usuario);
+    
+    // Llenar formulario
+    document.getElementById('usuarioIdx').value = parametro;
+    document.getElementById('userEmail').value = usuario.email || '';
+    document.getElementById('userEmail').readOnly = true;
+
+    document.getElementById('userName').value = usuario.name || '';
+    document.getElementById('userName').readOnly = true;
+
+    document.getElementById('userPass').value = usuario.password || '';
+    document.getElementById('userPass').readOnly = true;
+
+    document.getElementById('userMerchant').value = usuario.merchant_id || '';
+    document.getElementById('userMerchant').readOnly = true;
+
+    document.getElementById('userRenpixEmail').value = usuario.renpix_email || '';
+    document.getElementById('userRenpixEmail').readOnly = true;
+
+    document.getElementById('userRenpixPassword').value = usuario.renpix_password || '';
+    document.getElementById('userRenpixPassword').readOnly = true;
+
+    document.getElementById('userOperationCode').value = usuario.operationCode || '1';
+    document.getElementById('userOperationCode').disabled = true;
+
+    document.getElementById('userDefaultCurrency').value = usuario.defaultCurrency || 'CLP';
+    document.getElementById('userDefaultCurrency').disabled = true;
+
+    // Para los checkboxes, usa disabled:
+    document.getElementById('userAllowCLP').checked = usuario.allowCLP !== false;
+    document.getElementById('userAllowCLP').disabled = true;
+
+    document.getElementById('userAllowUSD').checked = usuario.allowUSD === true;
+    document.getElementById('userAllowUSD').disabled = true;
+
+    document.getElementById('userAllowQR').checked = usuario.allowQR !== false;
+    document.getElementById('userAllowQR').disabled = true;
+
+    document.getElementById('userAllowLink').checked = usuario.allowLink === true;
+    document.getElementById('userAllowLink').disabled = true;
+
+    document.getElementById('userTiendaActiva').checked = usuario.requiereIdVentaTienda === true || usuario.ventaTiendaActiva === true;
+    document.getElementById('userTiendaActiva').disabled = true;
+    
+    // Abrir modal
+    const modal = new bootstrap.Modal(document.getElementById('modalUsuario'));
+    modal.show();
+  };
+  
+  // Sobrescribir función global
+  window.editarUsuario = window.editarUsuarioMejorado;
 
   function showSection(section) {
-    // Oculta todas las secciones principales
-    document.getElementById('seccionUsuarios').style.display = 'none';
-    document.getElementById('seccionTransacciones').style.display = 'none';
-    document.getElementById('seccionLinks').style.display = 'none';
-    document.getElementById('seccionTransaccionesBoton').style.display = 'none';
-    document.getElementById('seccionTipoCambio').style.display = 'none';
+    // Ocultar todas las secciones
+    ['usuarios', 'transacciones', 'links', 'transaccionesBoton', 'tipoCambio'].forEach(s => {
+      document.getElementById('seccion' + s.charAt(0).toUpperCase() + s.slice(1)).style.display = 'none';
+    });
 
-    // Muestra solo la sección seleccionada
-    if (section === 'usuarios') {
-      document.getElementById('seccionUsuarios').style.display = 'block';
-    } else if (section === 'transacciones') {
-      document.getElementById('seccionTransacciones').style.display = 'block';
-    } else if (section === 'links') {
-      document.getElementById('seccionLinks').style.display = 'block';
-    } else if (section === 'transaccionesBoton') {
-      document.getElementById('seccionTransaccionesBoton').style.display = 'block';
+    // Mostrar sección seleccionada
+    document.getElementById('seccion' + section.charAt(0).toUpperCase() + section.slice(1)).style.display = 'block';
+    
+    if (section === 'transaccionesBoton') {
       cargarTransaccionesBoton();
     } else if (section === 'tipoCambio') {
-      document.getElementById('seccionTipoCambio').style.display = 'block';
       loadExchangeRate();
     }
   }
 
-  // Cargar transacciones botón
+  // Resto de funciones...
   async function cargarTransaccionesBoton() {
     const resp = await fetch('/api/payment-button/all');
     const data = await resp.json();
@@ -527,7 +463,6 @@
     }
   }
 
-  // Función para cargar la tasa de cambio
   async function loadExchangeRate() {
     try {
       const response = await fetch('/api/exchange-rate');
@@ -535,8 +470,6 @@
       
       if (data.success) {
         document.getElementById('currentRate').textContent = data.rate.toFixed(2);
-        
-        // Actualizar estado del cache
         const cacheStatus = document.getElementById('cacheStatus');
         if (data.cacheInfo.isValid) {
           cacheStatus.className = 'badge bg-success';
@@ -545,152 +478,85 @@
           cacheStatus.className = 'badge bg-warning';
           cacheStatus.textContent = 'Expirado';
         }
-        
-        // Actualizar última actualización
         document.getElementById('lastUpdate').textContent = new Date(data.timestamp).toLocaleString();
-        
-        if (typeof debugLog === 'function') {
-          debugLog(`Tasa de cambio cargada: ${data.rate} CLP/USD`);
-        }
-      } else {
-        throw new Error(data.error || 'Error desconocido');
       }
     } catch (error) {
-      if (typeof debugLog === 'function') {
-        debugLog(`Error al cargar tasa de cambio: ${error.message}`, 'error');
-      }
+      console.error('Error:', error);
       document.getElementById('currentRate').textContent = 'Error';
-      document.getElementById('cacheStatus').className = 'badge bg-danger';
-      document.getElementById('cacheStatus').textContent = 'Error';
     }
   }
 
-  // Función para actualizar la tasa de cambio
   async function refreshExchangeRate() {
     const spinner = document.getElementById('rateSpinner');
     spinner.classList.remove('d-none');
     
     try {
-      const response = await fetch('/api/exchange-rate/refresh', {
-        method: 'POST'
-      });
+      const response = await fetch('/api/exchange-rate/refresh', { method: 'POST' });
       const data = await response.json();
-      
       if (data.success) {
-        if (typeof debugLog === 'function') {
-          debugLog(`Tasa actualizada manualmente: ${data.rate} CLP/USD`);
-        }
-        // Recargar los datos
         await loadExchangeRate();
-      } else {
-        throw new Error(data.error || 'Error al actualizar');
       }
     } catch (error) {
-      if (typeof debugLog === 'function') {
-        debugLog(`Error al actualizar tasa: ${error.message}`, 'error');
-      }
       alert('Error al actualizar la tasa de cambio');
     } finally {
       spinner.classList.add('d-none');
     }
   }
 
-  // Función para manejar el guardado del formulario de usuario
-  document.getElementById('formUsuario').addEventListener('submit', async function(e) {
-    e.preventDefault();
+  // Event listener único para el formulario
+  document.addEventListener('DOMContentLoaded', async function() {
+    await cargarUsuariosData();
     
-    const idx = document.getElementById('usuarioIdx').value;
-    const isEdit = idx !== '' && idx !== undefined && idx !== null;
-    
-    const userData = {
-      email: document.getElementById('userEmail').value,
-      name: document.getElementById('userName').value,
-      password: document.getElementById('userPass').value,
-      merchant_id: document.getElementById('userMerchant').value,
-      renpix_email: document.getElementById('userRenpixEmail').value,
-      renpix_password: document.getElementById('userRenpixPassword').value,
-      operationCode: parseInt(document.getElementById('userOperationCode').value),
-      allowCLP: document.getElementById('userAllowCLP').checked,
-      allowUSD: document.getElementById('userAllowUSD').checked,
-      defaultCurrency: document.getElementById('userDefaultCurrency').value,
-      allowQR: document.getElementById('userAllowQR').checked,
-      allowLink: document.getElementById('userAllowLink').checked,
-      requiereIdVentaTienda: document.getElementById('userTiendaActiva').checked
-    };
-    
-    try {
-      let response;
+    // Solo un event listener para el formulario
+    document.getElementById('formUsuario').addEventListener('submit', async function(e) {
+      e.preventDefault();
       
-      if (isEdit) {
-        // Si es edición, hacer PUT o POST con flag de actualización
-        console.log('Editando usuario:', userData.email);
-        response = await fetch('/api/admin/users/update', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            oldEmail: window.usuarios[idx].email, // Email original para buscar
-            ...userData
-          })
-        });
-        
-        // Si el endpoint de actualización no existe, intentar con el endpoint normal
-        if (response.status === 404) {
-          response = await fetch('/api/admin/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...userData,
-              isUpdate: true,
-              userIndex: idx
-            })
-          });
+      const idx = document.getElementById('usuarioIdx').value;
+      const isEdit = idx !== '';
+      
+      const userData = {
+        email: document.getElementById('userEmail').value,
+        name: document.getElementById('userName').value,
+        password: document.getElementById('userPass').value,
+        merchant_id: document.getElementById('userMerchant').value,
+        renpix_email: document.getElementById('userRenpixEmail').value,
+        renpix_password: document.getElementById('userRenpixPassword').value,
+        operationCode: parseInt(document.getElementById('userOperationCode').value),
+        allowCLP: document.getElementById('userAllowCLP').checked,
+        allowUSD: document.getElementById('userAllowUSD').checked,
+        defaultCurrency: document.getElementById('userDefaultCurrency').value,
+        allowQR: document.getElementById('userAllowQR').checked,
+        allowLink: document.getElementById('userAllowLink').checked,
+        requiereIdVentaTienda: document.getElementById('userTiendaActiva').checked
+      };
+      
+      try {
+        // Usar la función de admin.js para guardar
+        if (typeof guardarUsuario === 'function') {
+          await guardarUsuario(userData, isEdit ? idx : null);
+        } else {
+          // Fallback manual
+          const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+          if (isEdit) {
+            const index = parseInt(idx);
+            usuarios[index] = userData;
+          } else {
+            usuarios.push(userData);
+          }
+          localStorage.setItem('usuarios', JSON.stringify(usuarios));
         }
-      } else {
-        // Si es nuevo, hacer POST normal
-        console.log('Creando nuevo usuario:', userData.email);
-        response = await fetch('/api/admin/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userData)
-        });
-      }
-      
-      const result = await response.json();
-      
-      if (result.success || response.ok) {
-        alert(isEdit ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente');
         
-        // Cerrar el modal
+        alert(isEdit ? 'Usuario actualizado' : 'Usuario creado');
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalUsuario'));
         modal.hide();
         
-        // Recargar la lista de usuarios
         if (typeof cargarUsuarios === 'function') {
           cargarUsuarios();
-        } else {
-          location.reload();
         }
-      } else {
-        throw new Error(result.error || 'Error al guardar usuario');
+      } catch (error) {
+        alert('Error: ' + error.message);
       }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error: ' + error.message);
-    }
-  });
-  
-  // Limpiar el formulario cuando se abre para nuevo usuario
-  document.getElementById('modalUsuario').addEventListener('show.bs.modal', function(event) {
-    // Si no viene de un botón de editar, limpiar el formulario
-    if (!event.relatedTarget || !event.relatedTarget.onclick || !event.relatedTarget.onclick.toString().includes('editarUsuario')) {
-      document.getElementById('formUsuario').reset();
-      document.getElementById('usuarioIdx').value = '';
-    }
-  });
-  
-  // Cargar la tasa al iniciar si está visible
-  document.addEventListener('DOMContentLoaded', () => {
-    // No cargar automáticamente, solo cuando se haga clic en el menú
+    });
   });
 </script>
 </body>

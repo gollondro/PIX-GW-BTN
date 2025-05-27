@@ -71,7 +71,7 @@ async function cargarUsuarios() {
           <td>${renderCurrencyIcons(u)}</td>
           <td>${(u.ventaTiendaActiva || u.requiereIdVentaTienda) ? '✅' : ''}</td>
           <td>
-            <button class="btn btn-sm btn-warning" onclick="editarUsuario(${i})">✏️</button>
+            <button class="btn btn-sm btn-outline-info" onclick="editarUsuario(${i})">👁️</button>
             <button class="btn btn-sm btn-danger" onclick="eliminarUsuario(${i})">🗑️</button>
           </td>
         </tr>`;
