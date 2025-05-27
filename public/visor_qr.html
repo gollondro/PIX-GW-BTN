@@ -150,6 +150,9 @@
     });
 
     document.getElementById('updateButton').addEventListener('click', async () => {
+      // Limpiar el estado de pago antes de actualizar
+      document.getElementById('paymentStatus').innerHTML = '';
+      
       const email = SessionManager.getCurrentUser();
       const tx = await fetchTransaction(email);
       if (tx) {
