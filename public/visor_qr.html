@@ -60,6 +60,10 @@
         <div class="col-md-6">
           <img id="qrCodeImage" src="" alt="QR Code" class="img-fluid" style="max-height: 250px;">
           <p><strong>Código PIX:</strong> <span id="pixCode" style="word-break: break-all;"></span></p>
+          <div id="countdownTimer" class="alert alert-info mt-3" style="display: none;">
+            <h5 class="mb-2">⏱️ Tiempo restante para pagar:</h5>
+            <h3 id="timeRemaining" class="text-center mb-0">5:00</h3>
+          </div>
         </div>
         <div class="col-md-6">
           <button id="updateButton" class="btn btn-success w-100">🔄 Actualizar Datos</button>
@@ -71,6 +75,8 @@
 
   <script>
     let pollingInterval = null;
+    let countdownInterval = null;
+    let countdownSeconds = 300; // 5 minutos en segundos
 
     const SessionManager = {
       setCurrentUser: email => {
@@ -81,6 +87,39 @@
       clearSession: () => { sessionStorage.clear(); localStorage.clear(); }
     };
 
+    function startCountdown() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownSeconds = 300; // Reiniciar a 5 minutos
+      
+      document.getElementById('countdownTimer').style.display = 'block';
+      
+      countdownInterval = setInterval(() => {
+        countdownSeconds--;
+        const minutes = Math.floor(countdownSeconds / 60);
+        const seconds = countdownSeconds % 60;
+        document.getElementById('timeRemaining').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (countdownSeconds <= 0) {
+          clearInterval(countdownInterval);
+          clearInterval(pollingInterval);
+          // Ocultar QR y mostrar expirado
+          document.getElementById('qrCodeImage').style.display = 'none';
+          document.getElementById('pixCode').textContent = 'Pago expirado';
+          document.getElementById('countdownTimer').innerHTML = '<div class="alert alert-danger mb-0">⏰ Tiempo expirado - El código QR ya no es válido</div>';
+          document.getElementById('transactionStatus').textContent = 'EXPIRADO';
+          document.getElementById('transactionStatus').className = 'badge bg-danger';
+        }
+      }, 1000);
+    }
+
+    function stopCountdown() {
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      document.getElementById('countdownTimer').style.display = 'none';
+    }
+
     async function fetchTransaction(email) {
       const res = await fetch(`/api/payment-button/latest-transaction?userEmail=${encodeURIComponent(email)}`);
       const data = await res.json();
@@ -89,6 +128,7 @@
 
     function displayTransaction(tx) {
       document.getElementById('paymentStatus').innerHTML = ''; // Limpiar estado previo
+      stopCountdown(); // Detener cualquier cuenta regresiva anterior
 
       document.getElementById('userEmail').textContent = tx.userEmail;
       document.getElementById('transactionId').textContent = tx.internalId || tx.transactionId;
@@ -110,6 +150,11 @@
         qrImg.src = `data:image/png;base64,${qr.qrCodeBase64}`;
         qrImg.style.display = 'block';
         document.getElementById('pixCode').textContent = qr.pixCopyPast || '-';
+        
+        // Iniciar cuenta regresiva solo si el estado es PENDIENTE
+        if (tx.status === 'PENDIENTE') {
+          startCountdown();
+        }
       } else {
         qrImg.style.display = 'none';
         document.getElementById('pixCode').textContent = tx.status === 'PAGADO' ? 'Pago completado' : '-';
@@ -128,6 +173,7 @@
         const data = await res.json();
         if (data.success && data.transaction.status === 'PAGADO') {
           clearInterval(pollingInterval);
+          stopCountdown(); // Detener cuenta regresiva si se paga
           displayTransaction(data.transaction);
           document.getElementById('paymentStatus').innerHTML = `
             <div class="alert alert-success">✅ Pago confirmado<br><b>Fecha:</b> ${new Date(data.transaction.paid_at).toLocaleString()}</div>`;
@@ -159,6 +205,7 @@
     document.getElementById('updateButton').addEventListener('click', async () => {
       // Limpiar el estado de pago antes de actualizar
       document.getElementById('paymentStatus').innerHTML = '';
+      stopCountdown(); // Detener cuenta regresiva anterior
       
       const email = SessionManager.getCurrentUser();
       const tx = await fetchTransaction(email);
@@ -171,6 +218,7 @@
     window.addEventListener('message', event => {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type === 'PAYMENT_SUCCESS') {
+        stopCountdown(); // Detener cuenta regresiva si se paga
         displayTransaction(event.data.data);
         document.getElementById('paymentStatus').innerHTML = `
           <div class="alert alert-success">✅ Pago recibido<br><b>Fecha:</b> ${event.data.data.paid_at}</div>`;
@@ -179,6 +227,7 @@
     });
 
     function logout() {
+      stopCountdown(); // Detener cuenta regresiva al cerrar sesión
       SessionManager.clearSession();
       location.reload();
     }
