@@ -46,7 +46,8 @@
       <button id="menuUsuarios" class="btn btn-afex me-2" onclick="showSection('usuarios')">Usuarios</button>
       <button id="menuTransacciones" class="btn btn-afex me-2" onclick="showSection('transacciones')">Transacciones</button>
       <button id="menuLinks" class="btn btn-afex me-2" onclick="showSection('links')">Links de Pago</button>
-      <button id="menuTransaccionesBoton" class="btn btn-afex" onclick="showSection('transaccionesBoton')">Transacciones Botón</button>
+      <button id="menuTransaccionesBoton" class="btn btn-afex me-2" onclick="showSection('transaccionesBoton')">Transacciones Botón</button>
+      <button id="menuTipoCambio" class="btn btn-afex" onclick="showSection('tipoCambio')">Tipo de Cambio</button>
     </div>
 
     <!-- Secciones -->
@@ -170,6 +171,37 @@
       </div>
     </div>
 
+    <!-- Nueva Sección Tipo de Cambio -->
+    <div id="seccionTipoCambio" style="display:none;">
+      <div id="exchangeRateWidget" class="card mb-3">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">💱 Tasa de Cambio CLP/USD</h6>
+          <button class="btn btn-sm btn-light" onclick="refreshExchangeRate()">
+            <span class="spinner-border spinner-border-sm d-none" id="rateSpinner"></span>
+            🔄 Actualizar
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <h3 class="text-center">
+                <span id="currentRate">--</span>
+                <small class="text-muted">CLP por USD</small>
+              </h3>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted">Estado del Cache:</small><br>
+              <span id="cacheStatus" class="badge">--</span>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted">Última actualización:</small><br>
+              <span id="lastUpdate">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal usuario -->
     <div class="modal fade" id="modalUsuario" tabindex="-1">
       <div class="modal-dialog">
@@ -259,154 +291,134 @@
       </div>
     </div>
 
-    <div id="exchangeRateWidget" class="card mb-3">
-      <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-        <h6 class="mb-0">💱 Tasa de Cambio CLP/USD</h6>
-        <button class="btn btn-sm btn-light" onclick="refreshExchangeRate()">
-          <span class="spinner-border spinner-border-sm d-none" id="rateSpinner"></span>
-          🔄 Actualizar
-        </button>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-4">
-            <h3 class="text-center">
-              <span id="currentRate">--</span>
-              <small class="text-muted">CLP por USD</small>
-            </h3>
-          </div>
-          <div class="col-md-4">
-            <small class="text-muted">Estado del Cache:</small><br>
-            <span id="cacheStatus" class="badge">--</span>
-          </div>
-          <div class="col-md-4">
-            <small class="text-muted">Última actualización:</small><br>
-            <span id="lastUpdate">--</span>
-          </div>
-        </div>
-      </div>
-    </div>
+  </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/admin.js"></script>
 <script>
   function showSection(section) {
-  // Oculta todas las secciones principales
-  document.getElementById('seccionUsuarios').style.display = 'none';
-  document.getElementById('seccionTransacciones').style.display = 'none';
-  document.getElementById('seccionLinks').style.display = 'none';
-  document.getElementById('seccionTransaccionesBoton').style.display = 'none';
+    // Oculta todas las secciones principales
+    document.getElementById('seccionUsuarios').style.display = 'none';
+    document.getElementById('seccionTransacciones').style.display = 'none';
+    document.getElementById('seccionLinks').style.display = 'none';
+    document.getElementById('seccionTransaccionesBoton').style.display = 'none';
+    document.getElementById('seccionTipoCambio').style.display = 'none';
 
-  // Muestra solo la sección seleccionada
-  if (section === 'usuarios') document.getElementById('seccionUsuarios').style.display = 'block';
-  if (section === 'transacciones') document.getElementById('seccionTransacciones').style.display = 'block';
-  if (section === 'links') document.getElementById('seccionLinks').style.display = 'block';
-  if (section === 'transaccionesBoton') {
-    document.getElementById('seccionTransaccionesBoton').style.display = 'block';
-    cargarTransaccionesBoton();
+    // Muestra solo la sección seleccionada
+    if (section === 'usuarios') {
+      document.getElementById('seccionUsuarios').style.display = 'block';
+    } else if (section === 'transacciones') {
+      document.getElementById('seccionTransacciones').style.display = 'block';
+    } else if (section === 'links') {
+      document.getElementById('seccionLinks').style.display = 'block';
+    } else if (section === 'transaccionesBoton') {
+      document.getElementById('seccionTransaccionesBoton').style.display = 'block';
+      cargarTransaccionesBoton();
+    } else if (section === 'tipoCambio') {
+      document.getElementById('seccionTipoCambio').style.display = 'block';
+      loadExchangeRate();
+    }
   }
-}
 
-// Cargar transacciones botón
-async function cargarTransaccionesBoton() {
-  const resp = await fetch('/api/payment-button/all');
-  const data = await resp.json();
-  const tbody = document.querySelector('#tablaTransaccionesBoton tbody');
-  tbody.innerHTML = '';
-  if (data.success && Array.isArray(data.transactions)) {
-    data.transactions.forEach(tx => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${tx.internalId || ''}</td>
-        <td>${tx.userEmail || ''}</td>
-        <td>${tx.amountUSD ?? ''}</td>
-        <td>${tx.amountBRL ?? tx.priceNationalCurrency ?? ''}</td>
-        <td>${tx.usdToBrlRate ?? tx.vetTax ?? ''}</td>
-        <td>${tx.customer?.name || ''}</td>
-        <td>${tx.customer?.email || ''}</td>
-        <td>${tx.customer?.phone || ''}</td>
-        <td>${tx.customer?.cpf || ''}</td>
-        <td>${tx.status || ''}</td>
-        <td>${tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ''}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+  // Cargar transacciones botón
+  async function cargarTransaccionesBoton() {
+    const resp = await fetch('/api/payment-button/all');
+    const data = await resp.json();
+    const tbody = document.querySelector('#tablaTransaccionesBoton tbody');
+    tbody.innerHTML = '';
+    if (data.success && Array.isArray(data.transactions)) {
+      data.transactions.forEach(tx => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${tx.internalId || ''}</td>
+          <td>${tx.userEmail || ''}</td>
+          <td>${tx.amountUSD ?? ''}</td>
+          <td>${tx.amountBRL ?? tx.priceNationalCurrency ?? ''}</td>
+          <td>${tx.usdToBrlRate ?? tx.vetTax ?? ''}</td>
+          <td>${tx.customer?.name || ''}</td>
+          <td>${tx.customer?.email || ''}</td>
+          <td>${tx.customer?.phone || ''}</td>
+          <td>${tx.customer?.cpf || ''}</td>
+          <td>${tx.status || ''}</td>
+          <td>${tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
   }
-}
 
-// Función para cargar la tasa de cambio
-async function loadExchangeRate() {
-  try {
-    const response = await fetch('/api/exchange-rate');
-    const data = await response.json();
-    
-    if (data.success) {
-      document.getElementById('currentRate').textContent = data.rate.toFixed(2);
+  // Función para cargar la tasa de cambio
+  async function loadExchangeRate() {
+    try {
+      const response = await fetch('/api/exchange-rate');
+      const data = await response.json();
       
-      // Actualizar estado del cache
-      const cacheStatus = document.getElementById('cacheStatus');
-      if (data.cacheInfo.isValid) {
-        cacheStatus.className = 'badge bg-success';
-        cacheStatus.textContent = `Válido por ${data.cacheInfo.timeRemaining}`;
+      if (data.success) {
+        document.getElementById('currentRate').textContent = data.rate.toFixed(2);
+        
+        // Actualizar estado del cache
+        const cacheStatus = document.getElementById('cacheStatus');
+        if (data.cacheInfo.isValid) {
+          cacheStatus.className = 'badge bg-success';
+          cacheStatus.textContent = `Válido por ${data.cacheInfo.timeRemaining}`;
+        } else {
+          cacheStatus.className = 'badge bg-warning';
+          cacheStatus.textContent = 'Expirado';
+        }
+        
+        // Actualizar última actualización
+        document.getElementById('lastUpdate').textContent = new Date(data.timestamp).toLocaleString();
+        
+        if (typeof debugLog === 'function') {
+          debugLog(`Tasa de cambio cargada: ${data.rate} CLP/USD`);
+        }
       } else {
-        cacheStatus.className = 'badge bg-warning';
-        cacheStatus.textContent = 'Expirado';
+        throw new Error(data.error || 'Error desconocido');
       }
-      
-      // Actualizar última actualización
-      document.getElementById('lastUpdate').textContent = new Date(data.timestamp).toLocaleString();
-      
+    } catch (error) {
       if (typeof debugLog === 'function') {
-        debugLog(`Tasa de cambio cargada: ${data.rate} CLP/USD`);
+        debugLog(`Error al cargar tasa de cambio: ${error.message}`, 'error');
       }
-    } else {
-      throw new Error(data.error || 'Error desconocido');
+      document.getElementById('currentRate').textContent = 'Error';
+      document.getElementById('cacheStatus').className = 'badge bg-danger';
+      document.getElementById('cacheStatus').textContent = 'Error';
     }
-  } catch (error) {
-    if (typeof debugLog === 'function') {
-      debugLog(`Error al cargar tasa de cambio: ${error.message}`, 'error');
-    }
-    document.getElementById('currentRate').textContent = 'Error';
-    document.getElementById('cacheStatus').className = 'badge bg-danger';
-    document.getElementById('cacheStatus').textContent = 'Error';
   }
-}
 
-// Función para actualizar la tasa de cambio
-async function refreshExchangeRate() {
-  const spinner = document.getElementById('rateSpinner');
-  spinner.classList.remove('d-none');
-  
-  try {
-    const response = await fetch('/api/exchange-rate/refresh', {
-      method: 'POST'
-    });
-    const data = await response.json();
+  // Función para actualizar la tasa de cambio
+  async function refreshExchangeRate() {
+    const spinner = document.getElementById('rateSpinner');
+    spinner.classList.remove('d-none');
     
-    if (data.success) {
-      if (typeof debugLog === 'function') {
-        debugLog(`Tasa actualizada manualmente: ${data.rate} CLP/USD`);
+    try {
+      const response = await fetch('/api/exchange-rate/refresh', {
+        method: 'POST'
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        if (typeof debugLog === 'function') {
+          debugLog(`Tasa actualizada manualmente: ${data.rate} CLP/USD`);
+        }
+        // Recargar los datos
+        await loadExchangeRate();
+      } else {
+        throw new Error(data.error || 'Error al actualizar');
       }
-      // Recargar los datos
-      await loadExchangeRate();
-    } else {
-      throw new Error(data.error || 'Error al actualizar');
+    } catch (error) {
+      if (typeof debugLog === 'function') {
+        debugLog(`Error al actualizar tasa: ${error.message}`, 'error');
+      }
+      alert('Error al actualizar la tasa de cambio');
+    } finally {
+      spinner.classList.add('d-none');
     }
-  } catch (error) {
-    if (typeof debugLog === 'function') {
-      debugLog(`Error al actualizar tasa: ${error.message}`, 'error');
-    }
-    alert('Error al actualizar la tasa de cambio');
-  } finally {
-    spinner.classList.add('d-none');
   }
-}
 
-// Cargar la tasa al iniciar y actualizar cada minuto
-document.addEventListener('DOMContentLoaded', () => {
-  loadExchangeRate();
-  setInterval(loadExchangeRate, 60000);
-});
+  // Cargar la tasa al iniciar si está visible
+  document.addEventListener('DOMContentLoaded', () => {
+    // No cargar automáticamente, solo cuando se haga clic en el menú
+  });
 </script>
 </body>
 </html>
