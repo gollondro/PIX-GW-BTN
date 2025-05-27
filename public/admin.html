@@ -299,9 +299,16 @@
 <script>
   // Función para editar usuario (sobrescribir si existe)
   window.editarUsuario = function(index) {
+    console.log('Editando usuario en índice:', index);
+    
     // Obtener el usuario del array (asumiendo que existe una variable global 'usuarios')
-    const usuario = window.usuarios[index];
-    if (!usuario) return;
+    const usuario = window.usuarios ? window.usuarios[index] : null;
+    if (!usuario) {
+      console.error('Usuario no encontrado en índice:', index);
+      return;
+    }
+    
+    console.log('Datos del usuario:', usuario);
     
     // Llenar todos los campos del modal
     document.getElementById('usuarioIdx').value = index;
@@ -310,12 +317,34 @@
     document.getElementById('userPass').value = usuario.password || '';
     document.getElementById('userMerchant').value = usuario.merchant_id || '';
     
-    // Campos de Rendix/Renpix
-    document.getElementById('userRenpixEmail').value = usuario.renpix_email || '';
-    document.getElementById('userRenpixPassword').value = usuario.renpix_password || '';
+    // Campos de Rendix/Renpix - con debug
+    const renpixEmail = usuario.renpix_email || '';
+    const renpixPassword = usuario.renpix_password || '';
+    console.log('Email Renpix:', renpixEmail);
+    console.log('Password Renpix:', renpixPassword);
+    
+    const emailField = document.getElementById('userRenpixEmail');
+    const passwordField = document.getElementById('userRenpixPassword');
+    
+    if (emailField) {
+      emailField.value = renpixEmail;
+      console.log('Campo email encontrado y valor asignado');
+    } else {
+      console.error('Campo userRenpixEmail no encontrado');
+    }
+    
+    if (passwordField) {
+      passwordField.value = renpixPassword;
+      console.log('Campo password encontrado y valor asignado');
+    } else {
+      console.error('Campo userRenpixPassword no encontrado');
+    }
     
     // Código de operación
-    document.getElementById('userOperationCode').value = usuario.operationCode || '1';
+    const operationField = document.getElementById('userOperationCode');
+    if (operationField) {
+      operationField.value = usuario.operationCode || '1';
+    }
     
     // Checkboxes de monedas
     document.getElementById('userAllowCLP').checked = usuario.allowCLP !== false;
@@ -333,6 +362,40 @@
     const modal = new bootstrap.Modal(document.getElementById('modalUsuario'));
     modal.show();
   };
+
+  // Función alternativa si la función editarUsuario original no carga los campos Renpix
+  document.addEventListener('DOMContentLoaded', function() {
+    // Interceptar clics en botones de editar
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.matches('[onclick*="editarUsuario"]')) {
+        // Esperar un momento para que el modal se abra
+        setTimeout(() => {
+          const idx = document.getElementById('usuarioIdx').value;
+          if (idx && window.usuarios && window.usuarios[idx]) {
+            const usuario = window.usuarios[idx];
+            
+            // Asegurar que los campos Renpix se llenen
+            const emailField = document.getElementById('userRenpixEmail');
+            const passwordField = document.getElementById('userRenpixPassword');
+            
+            if (emailField && usuario.renpix_email) {
+              emailField.value = usuario.renpix_email;
+            }
+            
+            if (passwordField && usuario.renpix_password) {
+              passwordField.value = usuario.renpix_password;
+            }
+            
+            // También el código de operación
+            const operationField = document.getElementById('userOperationCode');
+            if (operationField && usuario.operationCode) {
+              operationField.value = usuario.operationCode;
+            }
+          }
+        }, 100);
+      }
+    });
+  });
 
   function showSection(section) {
     // Oculta todas las secciones principales
