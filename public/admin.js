@@ -409,6 +409,48 @@ async function cargarTransaccionesLinkPago() {
   }
 }
 
+// En admin.js, busca y reemplaza la función showSection:
+function showSection(section) {
+  // Ocultar todas las secciones explícitamente
+  const allSections = [
+    'seccionUsuarios',
+    'seccionTransacciones', 
+    'seccionLinks',
+    'seccionTransaccionesBoton',
+    'seccionTipoCambio'
+  ];
+  
+  allSections.forEach(sectionId => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.style.display = 'none';
+    }
+  });
+
+  // Mostrar sección seleccionada
+  const targetSection = 'seccion' + section.charAt(0).toUpperCase() + section.slice(1);
+  const targetElement = document.getElementById(targetSection);
+  
+  if (targetElement) {
+    targetElement.style.display = 'block';
+  }
+  
+  console.log('Función showSection en admin.js - Mostrando sección:', targetSection);
+}
+
+function ocultarTodasLasSecciones() {
+  [
+    'seccionUsuarios',
+    'seccionTransacciones',
+    'seccionLinks',
+    'seccionTransaccionesBoton',
+    'seccionTipoCambio'
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
 // Inicialización principal
 window.addEventListener('DOMContentLoaded', () => {
   debugLog('Inicializando panel de administración');
@@ -424,21 +466,28 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Configurar menú
   document.getElementById('menuUsuarios').onclick = function() {
+    ocultarTodasLasSecciones();
     document.getElementById('seccionUsuarios').style.display = '';
-    document.getElementById('seccionTransacciones').style.display = 'none';
-    document.getElementById('seccionLinks').style.display = 'none';
   };
   document.getElementById('menuTransacciones').onclick = function() {
-    document.getElementById('seccionUsuarios').style.display = 'none';
+    ocultarTodasLasSecciones();
     document.getElementById('seccionTransacciones').style.display = '';
-    document.getElementById('seccionLinks').style.display = 'none';
     cargarTransacciones();
   };
   document.getElementById('menuLinks').onclick = function() {
-    document.getElementById('seccionUsuarios').style.display = 'none';
-    document.getElementById('seccionTransacciones').style.display = 'none';
+    ocultarTodasLasSecciones();
     document.getElementById('seccionLinks').style.display = '';
     cargarTransaccionesLinkPago();
+  };
+  document.getElementById('menuTransaccionesBoton').onclick = function() {
+    ocultarTodasLasSecciones();
+    document.getElementById('seccionTransaccionesBoton').style.display = '';
+    cargarTransaccionesBoton && cargarTransaccionesBoton();
+  };
+  document.getElementById('menuTipoCambio').onclick = function() {
+    ocultarTodasLasSecciones();
+    document.getElementById('seccionTipoCambio').style.display = '';
+    loadExchangeRate && loadExchangeRate();
   };
 
   // Botones de debug

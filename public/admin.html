@@ -301,165 +301,136 @@
   
   // Función global para buscar usuario
   function buscarUsuario(parametro) {
-    let usuario = null;
-    
-    // Primero buscar en localStorage (que usa admin.js)
     const usuariosLocalStorage = JSON.parse(localStorage.getItem('usuarios') || '[]');
-    
-    // Convertir parametro a string para poder usar includes
     const parametroStr = String(parametro);
     
     if (isNaN(parametro) || parametroStr.includes('@')) {
-      // Buscar por email
-      usuario = usuariosLocalStorage.find(u => u.email === parametroStr);
-      if (!usuario && window.usuariosData) {
-        usuario = window.usuariosData.find(u => u.email === parametroStr);
-      }
+      return usuariosLocalStorage.find(u => u.email === parametroStr);
     } else {
-      // Buscar por índice
       const index = parseInt(parametro);
-      usuario = usuariosLocalStorage[index];
-      if (!usuario && window.usuariosData) {
-        usuario = window.usuariosData[index];
-      }
+      return usuariosLocalStorage[index];
     }
-    
-    return usuario;
   }
   
-  // Función para cargar usuarios desde el servidor
+  // Función para cargar usuarios
   async function cargarUsuariosData() {
-    try {
-      // Usar localStorage si existe, sino cargar desde el backend
-      const usuariosLocalStorage = JSON.parse(localStorage.getItem('usuarios') || '[]');
-      if (usuariosLocalStorage.length > 0) {
-        window.usuariosData = usuariosLocalStorage;
-        return window.usuariosData;
-      }
-      
-      // Si no hay datos en localStorage, intentar cargar desde el servidor
-      // Cambiar la URL por una que sí funcione en tu aplicación
-      const response = await fetch('/admin'); // O cualquier endpoint que devuelva usuarios
-      if (response.ok) {
-        // Como no tienes un endpoint específico para usuarios,
-        // usar los datos del localStorage o dejar vacío
-        window.usuariosData = [];
-        return window.usuariosData;
-      }
-    } catch (error) {
-      console.error('Error cargando usuarios:', error);
-    }
-    
-    // Usar localStorage como fallback
     const usuariosLocalStorage = JSON.parse(localStorage.getItem('usuarios') || '[]');
     window.usuariosData = usuariosLocalStorage;
     return window.usuariosData;
   }
   
-  // Función mejorada para editar usuario
+  // Función mejorada para editar usuario (solo lectura)
   window.editarUsuarioMejorado = function(parametro) {
-    console.log('Editando usuario con parámetro:', parametro);
-    
     const usuario = buscarUsuario(parametro);
     
     if (!usuario) {
-      console.error('Usuario no encontrado:', parametro);
       alert('Error: Usuario no encontrado');
       return;
     }
     
-    console.log('Datos del usuario encontrado:', usuario);
-    
-    // Llenar formulario
+    // Llenar formulario en modo solo lectura
     document.getElementById('usuarioIdx').value = parametro;
     document.getElementById('userEmail').value = usuario.email || '';
     document.getElementById('userEmail').readOnly = true;
-
     document.getElementById('userName').value = usuario.name || '';
     document.getElementById('userName').readOnly = true;
-
     document.getElementById('userPass').value = usuario.password || '';
     document.getElementById('userPass').readOnly = true;
-
     document.getElementById('userMerchant').value = usuario.merchant_id || '';
     document.getElementById('userMerchant').readOnly = true;
-
     document.getElementById('userRenpixEmail').value = usuario.renpix_email || '';
     document.getElementById('userRenpixEmail').readOnly = true;
-
     document.getElementById('userRenpixPassword').value = usuario.renpix_password || '';
     document.getElementById('userRenpixPassword').readOnly = true;
-
     document.getElementById('userOperationCode').value = usuario.operationCode || '1';
     document.getElementById('userOperationCode').disabled = true;
-
     document.getElementById('userDefaultCurrency').value = usuario.defaultCurrency || 'CLP';
     document.getElementById('userDefaultCurrency').disabled = true;
-
-    // Para los checkboxes, usa disabled:
     document.getElementById('userAllowCLP').checked = usuario.allowCLP !== false;
     document.getElementById('userAllowCLP').disabled = true;
-
     document.getElementById('userAllowUSD').checked = usuario.allowUSD === true;
     document.getElementById('userAllowUSD').disabled = true;
-
     document.getElementById('userAllowQR').checked = usuario.allowQR !== false;
     document.getElementById('userAllowQR').disabled = true;
-
     document.getElementById('userAllowLink').checked = usuario.allowLink === true;
     document.getElementById('userAllowLink').disabled = true;
-
     document.getElementById('userTiendaActiva').checked = usuario.requiereIdVentaTienda === true || usuario.ventaTiendaActiva === true;
     document.getElementById('userTiendaActiva').disabled = true;
     
-    // Abrir modal
     const modal = new bootstrap.Modal(document.getElementById('modalUsuario'));
     modal.show();
   };
   
-  // Sobrescribir función global
-  window.editarUsuario = window.editarUsuarioMejorado;
-
-  function showSection(section) {
-    // Ocultar todas las secciones
-    ['usuarios', 'transacciones', 'links', 'transaccionesBoton', 'tipoCambio'].forEach(s => {
-      document.getElementById('seccion' + s.charAt(0).toUpperCase() + s.slice(1)).style.display = 'none';
-    });
-
-    // Mostrar sección seleccionada
-    document.getElementById('seccion' + section.charAt(0).toUpperCase() + section.slice(1)).style.display = 'block';
+  // FUNCIÓN PRINCIPAL PARA MANEJAR SECCIONES
+  window.showSection = function(section) {
+    console.log('🔄 Cambiando a sección:', section);
     
+    // Lista completa de TODAS las secciones
+    const allSections = [
+      'seccionUsuarios',
+      'seccionTransacciones', 
+      'seccionLinks',
+      'seccionTransaccionesBoton',
+      'seccionTipoCambio'
+    ];
+    
+    // OCULTAR TODAS las secciones primero
+    allSections.forEach(sectionId => {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.style.display = 'none';
+        console.log('✅ Ocultando:', sectionId);
+      }
+    });
+    
+    // Mostrar SOLO la sección solicitada
+    const targetSectionId = 'seccion' + section.charAt(0).toUpperCase() + section.slice(1);
+    const targetElement = document.getElementById(targetSectionId);
+    
+    if (targetElement) {
+      targetElement.style.display = 'block';
+      console.log('👁️ Mostrando:', targetSectionId);
+    }
+    
+    // Cargar datos específicos si es necesario
     if (section === 'transaccionesBoton') {
       cargarTransaccionesBoton();
     } else if (section === 'tipoCambio') {
       loadExchangeRate();
     }
-  }
+  };
+  
+  // Sobrescribir función editarUsuario
+  window.editarUsuario = window.editarUsuarioMejorado;
 
-  // Resto de funciones...
+  // Funciones auxiliares
   async function cargarTransaccionesBoton() {
-    const resp = await fetch('/api/payment-button/all');
-    const data = await resp.json();
-    const tbody = document.querySelector('#tablaTransaccionesBoton tbody');
-    tbody.innerHTML = '';
-    if (data.success && Array.isArray(data.transactions)) {
-      data.transactions.forEach(tx => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${tx.internalId || ''}</td>
-          <td>${tx.userEmail || ''}</td>
-          <td>${tx.amountUSD ?? ''}</td>
-          <td>${tx.amountBRL ?? tx.priceNationalCurrency ?? ''}</td>
-          <td>${tx.usdToBrlRate ?? tx.vetTax ?? ''}</td>
-          <td>${tx.customer?.name || ''}</td>
-          <td>${tx.customer?.email || ''}</td>
-          <td>${tx.customer?.phone || ''}</td>
-          <td>${tx.customer?.cpf || ''}</td>
-          <td>${tx.status || ''}</td>
-          <td>${tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ''}</td>
-        `;
-        tbody.appendChild(tr);
-      });
+    try {
+      const resp = await fetch('/api/payment-button/all');
+      const data = await resp.json();
+      const tbody = document.querySelector('#tablaTransaccionesBoton tbody');
+      tbody.innerHTML = '';
+      if (data.success && Array.isArray(data.transactions)) {
+        data.transactions.forEach(tx => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${tx.internalId || ''}</td>
+            <td>${tx.userEmail || ''}</td>
+            <td>${tx.amountUSD ?? ''}</td>
+            <td>${tx.amountBRL ?? tx.priceNationalCurrency ?? ''}</td>
+            <td>${tx.usdToBrlRate ?? tx.vetTax ?? ''}</td>
+            <td>${tx.customer?.name || ''}</td>
+            <td>${tx.customer?.email || ''}</td>
+            <td>${tx.customer?.phone || ''}</td>
+            <td>${tx.customer?.cpf || ''}</td>
+            <td>${tx.status || ''}</td>
+            <td>${tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ''}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    } catch (error) {
+      console.error('Error cargando transacciones botón:', error);
     }
   }
 
@@ -503,60 +474,10 @@
     }
   }
 
-  // Event listener único para el formulario
+  // Inicialización
   document.addEventListener('DOMContentLoaded', async function() {
     await cargarUsuariosData();
-    
-    // Solo un event listener para el formulario
-    document.getElementById('formUsuario').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      
-      const idx = document.getElementById('usuarioIdx').value;
-      const isEdit = idx !== '';
-      
-      const userData = {
-        email: document.getElementById('userEmail').value,
-        name: document.getElementById('userName').value,
-        password: document.getElementById('userPass').value,
-        merchant_id: document.getElementById('userMerchant').value,
-        renpix_email: document.getElementById('userRenpixEmail').value,
-        renpix_password: document.getElementById('userRenpixPassword').value,
-        operationCode: parseInt(document.getElementById('userOperationCode').value),
-        allowCLP: document.getElementById('userAllowCLP').checked,
-        allowUSD: document.getElementById('userAllowUSD').checked,
-        defaultCurrency: document.getElementById('userDefaultCurrency').value,
-        allowQR: document.getElementById('userAllowQR').checked,
-        allowLink: document.getElementById('userAllowLink').checked,
-        requiereIdVentaTienda: document.getElementById('userTiendaActiva').checked
-      };
-      
-      try {
-        // Usar la función de admin.js para guardar
-        if (typeof guardarUsuario === 'function') {
-          await guardarUsuario(userData, isEdit ? idx : null);
-        } else {
-          // Fallback manual
-          const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
-          if (isEdit) {
-            const index = parseInt(idx);
-            usuarios[index] = userData;
-          } else {
-            usuarios.push(userData);
-          }
-          localStorage.setItem('usuarios', JSON.stringify(usuarios));
-        }
-        
-        alert(isEdit ? 'Usuario actualizado' : 'Usuario creado');
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalUsuario'));
-        modal.hide();
-        
-        if (typeof cargarUsuarios === 'function') {
-          cargarUsuarios();
-        }
-      } catch (error) {
-        alert('Error: ' + error.message);
-      }
-    });
+    console.log('✅ Admin.html cargado completamente');
   });
 </script>
 </body>
