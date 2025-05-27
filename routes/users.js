@@ -1,9 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
-
-const USERS_FILE = path.join(__dirname, '../db/users.json');
+const userRepository = require('../repositories/userRepository');
 
 // Middleware auth básica para proteger /admin y /api/users
 function adminAuth(req, res, next) {
@@ -15,10 +12,10 @@ function adminAuth(req, res, next) {
   res.status(403).end('Forbidden');
 }
 
-// Leer usuarios
-router.get('/', adminAuth, (req, res) => {
+// Obtener todos los usuarios
+router.get('/', adminAuth, async (req, res) => {
   try {
-    const users = fs.existsSync(USERS_FILE) ? JSON.parse(fs.readFileSync(USERS_FILE)) : [];
+    const users = await userRepository.findAll();
     res.json(users);
   } catch (error) {
     console.error('Error al obtener usuarios:', error);
@@ -27,59 +24,36 @@ router.get('/', adminAuth, (req, res) => {
 });
 
 // Crear nuevo usuario
-router.post('/', adminAuth, (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
   try {
-    // Validar campos obligatorios
+    // Validaciones
     if (!req.body.email || !req.body.password || !req.body.merchant_id) {
       return res.status(400).json({ 
         success: false, 
         error: 'Faltan campos obligatorios (email, password, merchant_id)' 
       });
     }
-    
-    // Validar que al menos una moneda esté habilitada
     if (req.body.allowCLP === false && req.body.allowUSD !== true) {
       return res.status(400).json({
         success: false,
         error: 'El usuario debe tener al menos una moneda habilitada'
       });
     }
-
-    // Validar que al menos un método de pago esté habilitado
     if (req.body.allowQR === false && req.body.allowLink !== true) {
       return res.status(400).json({
         success: false,
         error: 'El usuario debe tener al menos un método de pago habilitado'
       });
     }
-    
-    // Validar que la moneda por defecto esté habilitada
-    if (req.body.defaultCurrency === 'CLP' && req.body.allowCLP === false) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se puede establecer CLP como moneda por defecto si no está habilitada'
-      });
-    }
-    
-    if (req.body.defaultCurrency === 'USD' && req.body.allowUSD !== true) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se puede establecer USD como moneda por defecto si no está habilitada'
-      });
-    }
-    
-    const users = fs.existsSync(USERS_FILE) ? JSON.parse(fs.readFileSync(USERS_FILE)) : [];
-    
     // Verificar si el email ya existe
-    if (users.some(u => u.email === req.body.email)) {
+    const existingUser = await userRepository.findByEmail(req.body.email);
+    if (existingUser) {
       return res.status(400).json({
         success: false,
         error: 'Ya existe un usuario con este email'
       });
     }
-    
-    users.push(req.body);
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    await userRepository.create(req.body);
     res.json({ success: true });
   } catch (error) {
     console.error('Error al crear usuario:', error);
@@ -87,68 +61,37 @@ router.post('/', adminAuth, (req, res) => {
   }
 });
 
-// Editar usuario
-router.put('/:id', adminAuth, (req, res) => {
+// Actualizar usuario por índice (para mantener compatibilidad)
+router.put('/:id', adminAuth, async (req, res) => {
   try {
-    // Validar campos obligatorios
+    // Validaciones
     if (!req.body.email || !req.body.password || !req.body.merchant_id) {
       return res.status(400).json({ 
         success: false, 
         error: 'Faltan campos obligatorios (email, password, merchant_id)' 
       });
     }
-    
-    // Validar que al menos una moneda esté habilitada
-    if (req.body.allowCLP === false && req.body.allowUSD !== true) {
-      return res.status(400).json({
-        success: false,
-        error: 'El usuario debe tener al menos una moneda habilitada'
-      });
-    }
-
-    // Validar que al menos un método de pago esté habilitado
-    if (req.body.allowQR === false && req.body.allowLink !== true) {
-      return res.status(400).json({
-        success: false,
-        error: 'El usuario debe tener al menos un método de pago habilitado'
-      });
-    }
-    
-    // Validar que la moneda por defecto esté habilitada
-    if (req.body.defaultCurrency === 'CLP' && req.body.allowCLP === false) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se puede establecer CLP como moneda por defecto si no está habilitada'
-      });
-    }
-    
-    if (req.body.defaultCurrency === 'USD' && req.body.allowUSD !== true) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se puede establecer USD como moneda por defecto si no está habilitada'
-      });
-    }
-    
-    const users = fs.existsSync(USERS_FILE) ? JSON.parse(fs.readFileSync(USERS_FILE)) : [];
+    // Para mantener compatibilidad con el admin actual que usa índices
+    const users = await userRepository.findAll();
     const idx = parseInt(req.params.id);
-    
     if (isNaN(idx) || idx < 0 || idx >= users.length) {
       return res.status(404).json({
         success: false,
         error: 'Usuario no encontrado'
       });
     }
-    
+    const targetEmail = users[idx].email;
     // Verificar duplicados de email (excepto el mismo usuario)
-    if (users.some((u, i) => i !== idx && u.email === req.body.email)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Ya existe otro usuario con este email'
-      });
+    if (req.body.email !== targetEmail) {
+      const existingUser = await userRepository.findByEmail(req.body.email);
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          error: 'Ya existe otro usuario con este email'
+        });
+      }
     }
-    
-    users[idx] = req.body;
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    await userRepository.update(targetEmail, req.body);
     res.json({ success: true });
   } catch (error) {
     console.error('Error al actualizar usuario:', error);
@@ -156,21 +99,19 @@ router.put('/:id', adminAuth, (req, res) => {
   }
 });
 
-// Eliminar usuario
-router.delete('/:id', adminAuth, (req, res) => {
+// Eliminar usuario por índice (para mantener compatibilidad)
+router.delete('/:id', adminAuth, async (req, res) => {
   try {
-    const users = fs.existsSync(USERS_FILE) ? JSON.parse(fs.readFileSync(USERS_FILE)) : [];
+    const users = await userRepository.findAll();
     const idx = parseInt(req.params.id);
-    
     if (isNaN(idx) || idx < 0 || idx >= users.length) {
       return res.status(404).json({
         success: false,
         error: 'Usuario no encontrado'
       });
     }
-    
-    users.splice(idx, 1);
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    const targetEmail = users[idx].email;
+    await userRepository.delete(targetEmail);
     res.json({ success: true });
   } catch (error) {
     console.error('Error al eliminar usuario:', error);
