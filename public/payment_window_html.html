@@ -291,7 +291,7 @@
             <div class="col-md-6 text-start">
               <h5>Detalles del Pago</h5>
               <p><strong>ID Transacción:</strong> ${transactionData.internalId}</p>
-              <p><strong>Monto:</strong> $${transactionData.amountUSD} USD</p>
+              <p><strong>Monto:</strong> ${transactionData.amountUSD} USD</p>
               <p><strong>Fecha:</strong> ${new Date(transactionData.paid_at || new Date()).toLocaleString()}</p>
               <p><strong>Estado:</strong> <span class="badge bg-success">PAGADO</span></p>
             </div>
@@ -304,7 +304,7 @@
             </div>
           </div>
           <div class="mt-4">
-            <button id="notifyParentBtn" class="btn btn-primary me-2">Notificar a Ventana Padre</button>
+            <button id="closeWindowBtn" class="btn btn-primary me-2">Cerrar</button>
             <button id="printReceiptBtn" class="btn btn-secondary">Imprimir Recibo</button>
           </div>
         </div>
@@ -313,21 +313,12 @@
       paymentConfirmationSection.style.display = 'block';
 
       // Configurar botones
-      const notifyParentBtn = document.getElementById('notifyParentBtn');
+      const closeWindowBtn = document.getElementById('closeWindowBtn');
       const printReceiptBtn = document.getElementById('printReceiptBtn');
 
-      if (notifyParentBtn) {
-        notifyParentBtn.addEventListener('click', () => {
-          if (window.opener) {
-            window.opener.postMessage({ 
-              type: 'PAYMENT_SUCCESS', 
-              transactionId: transactionData.internalId,
-              data: transactionData 
-            }, '*');
-            alert('Notificación enviada a la ventana padre');
-          } else {
-            alert('No hay ventana padre para notificar');
-          }
+      if (closeWindowBtn) {
+        closeWindowBtn.addEventListener('click', () => {
+          window.close();
         });
       }
 
