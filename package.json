@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "migrate:users": "node scripts/migrate-users.js"
+    "migrate:users": "node scripts/migrate-users.js",
+    "migrate:external-transactions": "node scripts/migrate-external-transactions.js"
+
   },
   "dependencies": {
     "axios": "^1.9.0",
