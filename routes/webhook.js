@@ -2,14 +2,10 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const router = express.Router();
-const transactionRepository = require('../repositories/transactionRepository');
-const externalTransactionRepository = require('../repositories/externalTransactionRepository');
 
 // Webhook para recibir notificaciones de pagos
 router.post('/', async (req, res) => {
   console.log('📩 Webhook recibido:', req.body);
-  console.log('🔍 Headers:', req.headers);
-  console.log('🔍 USE_DATABASE:', process.env.USE_DATABASE);
 
   try {
     const { transactionId, status } = req.body;
@@ -23,94 +19,41 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log(`🔄 Procesando webhook para transacción: ${transactionId} con status: ${status}`);
+    // Definir rutas de archivos
+    const externalFile = path.join(__dirname, '../db/external_transactions.json');
+    const paymentLinksFile = path.join(__dirname, '../db/payment_links.json');
+    const pendingFile = path.join(__dirname, '../db/pending.json');
+    const paidFile = path.join(__dirname, '../db/paid.json');
 
-    // Determinar si es un pago exitoso
-    const isPaid = status === 'PAID' || status === 'COMPLETED' || status === 'APROVADO';
-    const newStatus = isPaid ? 'PAGADO' : status;
-
-    // 1. BUSCAR EN TRANSACCIONES EXTERNAS (DB o JSON según configuración)
-    console.log('🔍 Buscando en transacciones externas...');
-    try {
-      const externalTransaction = await externalTransactionRepository.findByInternalId(transactionId);
-      if (externalTransaction) {
-        console.log('✅ Transacción externa encontrada:', externalTransaction.internalId);
-
-        if (isPaid) {
-          const updatedTransaction = await externalTransactionRepository.updateStatus(transactionId, newStatus, req.body);
-          if (updatedTransaction) {
-            console.log(`✅ Transacción externa ${transactionId} actualizada como ${newStatus}`);
-            return res.json({ success: true, message: 'Transacción externa actualizada correctamente' });
-          } else {
-            console.warn(`⚠️ No se pudo actualizar la transacción externa ${transactionId}`);
-          }
-        }
-      } else {
-        console.log('❌ Transacción externa no encontrada:', transactionId);
+    // Función para actualizar transacción
+    const updateTransaction = (transactions, index) => {
+      if (status === '3' || status === 'COMPLETED' || status === 'APROVADO') {
+        transactions[index].status = 'PAGADO';
+        transactions[index].paid_at = new Date().toISOString();
+        transactions[index].webhook_data = req.body;
+        return true;
       }
-    } catch (error) {
-      console.error('❌ Error al buscar/actualizar transacción externa:', error);
-      // No hacer return aquí, continuar con la búsqueda normal
-    }
+      return false;
+    };
 
-    // 2. BUSCAR EN TRANSACCIONES NORMALES (DB o JSON según configuración)
-    console.log('🔍 Buscando en transacciones normales...');
-    try {
-      const transaction = await transactionRepository.findById(transactionId);
-      if (transaction) {
-        console.log('✅ Transacción normal encontrada:', transactionId);
+    // Verificar en transacciones de botón (external_transactions.json)
+    if (fs.existsSync(externalFile)) {
+      let transactions = JSON.parse(fs.readFileSync(externalFile, 'utf8'));
+      const transactionIndex = transactions.findIndex(
+        tx =>
+          (tx.internalId && String(tx.internalId).trim().toLowerCase() === String(transactionId).trim().toLowerCase()) ||
+          (tx.transactionId && String(tx.transactionId).trim().toLowerCase() === String(transactionId).trim().toLowerCase())
+      );
 
-        if (isPaid) {
-          await transactionRepository.markAsPaid(transactionId, req.body);
-          console.log(`✅ Transacción normal ${transactionId} actualizada como ${newStatus}`);
-          return res.json({ success: true, message: 'Transacción normal actualizada correctamente' });
+      if (transactionIndex !== -1) {
+        if (updateTransaction(transactions, transactionIndex)) {
+          fs.writeFileSync(externalFile, JSON.stringify(transactions, null, 2));
+          console.log(`✅ Transacción de botón ${transactionId} actualizada como PAGADO`);
+          return res.json({ success: true, message: 'Transacción de botón actualizada correctamente' });
         }
       }
-    } catch (error) {
-      console.error('❌ Error al buscar/actualizar transacción normal:', error);
     }
 
-    // 3. BUSCAR EN ARCHIVOS JSON LEGACY (para compatibilidad)
-    console.log('🔍 Buscando en archivos JSON legacy...');
-    const legacyResult = await updateLegacyJSONFiles(transactionId, newStatus, req.body);
-    if (legacyResult.found) {
-      return res.json({ success: true, message: legacyResult.message });
-    }
-
-    // Si no se encuentra en ningún sistema
-    console.warn(`⚠️ Transacción ${transactionId} no encontrada en ningún sistema`);
-    return res.status(404).json({
-      success: false,
-      error: 'Transacción no encontrada'
-    });
-
-  } catch (error) {
-    console.error('❌ Error en webhook:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Error interno del servidor'
-    });
-  }
-});
-
-// Función auxiliar para manejar archivos JSON legacy
-async function updateLegacyJSONFiles(transactionId, status, webhookData) {
-  const paymentLinksFile = path.join(__dirname, '../db/payment_links.json');
-  const pendingFile = path.join(__dirname, '../db/pending.json');
-  const paidFile = path.join(__dirname, '../db/paid.json');
-
-  // Función para actualizar transacción
-  const updateTransaction = (transactions, index) => {
-    if (status === 'PAGADO') {
-      transactions[index].status = 'PAGADO';
-      transactions[index].paid_at = new Date().toISOString();
-      transactions[index].webhook_data = webhookData;
-      return true;
-    }
-    return false;
-  };
-
-  try {
     // Verificar en links de pago (payment_links.json)
     if (fs.existsSync(paymentLinksFile)) {
       let transactions = JSON.parse(fs.readFileSync(paymentLinksFile, 'utf8'));
@@ -124,7 +67,7 @@ async function updateLegacyJSONFiles(transactionId, status, webhookData) {
         if (updateTransaction(transactions, transactionIndex)) {
           fs.writeFileSync(paymentLinksFile, JSON.stringify(transactions, null, 2));
           console.log(`✅ Link de pago ${transactionId} actualizado como PAGADO`);
-          return { found: true, message: 'Link de pago actualizado correctamente' };
+          return res.json({ success: true, message: 'Link de pago actualizado correctamente' });
         }
       }
     }
@@ -145,7 +88,7 @@ async function updateLegacyJSONFiles(transactionId, status, webhookData) {
         const transaction = transactions.splice(transactionIndex, 1)[0];
         transaction.status = 'PAGADO';
         transaction.paid_at = new Date().toISOString();
-        transaction.webhook_data = webhookData;
+        transaction.webhook_data = req.body;
 
         paidTransactions.push(transaction);
 
@@ -153,15 +96,24 @@ async function updateLegacyJSONFiles(transactionId, status, webhookData) {
         fs.writeFileSync(paidFile, JSON.stringify(paidTransactions, null, 2));
 
         console.log(`✅ Transacción QR ${transactionId} actualizada como PAGADO`);
-        return { found: true, message: 'Transacción QR actualizada correctamente' };
+        return res.json({ success: true, message: 'Transacción QR actualizada correctamente' });
       }
     }
 
-    return { found: false };
+    // Si no se encuentra en ningún tipo de transacción
+    console.warn(`⚠️ Transacción ${transactionId} no encontrada en ningún sistema`);
+    return res.status(404).json({
+      success: false,
+      error: 'Transacción no encontrada'
+    });
+
   } catch (error) {
-    console.error('❌ Error al procesar archivos JSON legacy:', error);
-    return { found: false };
+    console.error('❌ Error en webhook:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Error interno del servidor'
+    });
   }
-}
+});
 
 module.exports = router;
